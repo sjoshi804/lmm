@@ -1,0 +1,3 @@
+defaults:
+  - override /model: large
+  - override /training: longer_epochs
