@@ -2,7 +2,7 @@ WD="/home/sjoshi/lmm/lm-train"
 
 export WANDB_PROJECT="gpt2-pretrain"
 deepspeed \
-    --include localhost:3,4,5,6,7 \
+    --include localhost:0,1,2,3,4,5,6,7 \
     --master_port 29501 \
     $WD/pretrain_gpt2.py \
     --deepspeed $WD/ds_configs/zero3.json \
@@ -12,7 +12,7 @@ deepspeed \
     --n_layer 12 \
     --n_head 12 \
     --intermediate_size 3072 \
-    --dataset_name TinyStories \
+    --dataset_name roneneldan/TinyStories \
     --max_length 1024 \
     --output_dir $WD/checkpoints/gpt2-pretrained \
     --per_device_train_batch_size 8 \
