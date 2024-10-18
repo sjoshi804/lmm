@@ -1,4 +1,0 @@
-defaults:
-  - model: base
-  - data: base
-  - training: base
