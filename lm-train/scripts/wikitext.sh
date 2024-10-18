@@ -1,5 +1,5 @@
 WD="/home/sjoshi/lmm/lm-train"
-
+RUN_ID=wikitext
 export WANDB_PROJECT="gpt2-pretrain"
 deepspeed \
     --include localhost:3,4,5,6,7 \
@@ -15,7 +15,7 @@ deepspeed \
     --dataset_name wikitext \
     --dataset_config_name wikitext-2-raw-v1 \
     --max_length 1024 \
-    --output_dir $WD/checkpoints/gpt2-pretrained \
+    --output_dir $WD/checkpoints/$RUN_ID \
     --per_device_train_batch_size 8 \
     --num_train_epochs 10 \
     --learning_rate 5e-5 \

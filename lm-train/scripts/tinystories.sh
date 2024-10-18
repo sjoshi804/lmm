@@ -1,5 +1,5 @@
 WD="/home/sjoshi/lmm/lm-train"
-
+RUN_ID=tinystories
 export WANDB_PROJECT="gpt2-pretrain"
 deepspeed \
     --include localhost:0,1,2,3,4,5,6,7 \
@@ -14,7 +14,7 @@ deepspeed \
     --intermediate_size 3072 \
     --dataset_name roneneldan/TinyStories \
     --max_length 1024 \
-    --output_dir $WD/checkpoints/gpt2-pretrained \
+    --output_dir $WD/checkpoints/$RUN_ID \
     --per_device_train_batch_size 8 \
     --num_train_epochs 1 \
     --learning_rate 5e-5 \
