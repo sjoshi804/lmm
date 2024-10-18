@@ -42,7 +42,6 @@ executing
 fastapi==0.115.0
 ffmpy==0.4.0
 filelock==3.16.1
-flash-attn==2.6.3
 fonttools==4.54.1
 frozenlist==1.4.1
 fsspec==2023.10.0
@@ -203,9 +202,7 @@ virtualenv==20.26.6
 wandb==0.18.2
 wavedrom==2.0.3.post3
 wcwidth 
-websockets==13.1
 xxhash==3.5.0
 yarl==1.15.3
-yt-dlp==2024.10.7
 zss==1.2.0
 zstandard==0.23.0
