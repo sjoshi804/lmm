@@ -12,14 +12,14 @@ deepspeed \
     --n_layer 12 \
     --n_head 12 \
     --intermediate_size 3072 \
-    --dataset_name wikitext \
-    --dataset_config_name wikitext-2-raw-v1 \
+    --dataset_name TinyStories \
+    --dataset_name val \
     --max_length 1024 \
     --output_dir $WD/checkpoints/gpt2-pretrained \
     --per_device_train_batch_size 8 \
-    --num_train_epochs 10 \
+    --num_train_epochs 1 \
     --learning_rate 5e-5 \
     --logging_dir $WD/logs \
     --logging_steps 10 \
     --save_strategy epoch \
-    --save_total_limit 1
+    --save_total_limit 2

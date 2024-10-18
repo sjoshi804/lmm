@@ -14,12 +14,16 @@ deepspeed \
     --intermediate_size 3072 \
     --dataset_name wikitext \
     --dataset_config_name wikitext-2-raw-v1 \
+    --split validation \
     --max_length 1024 \
     --output_dir $WD/checkpoints/gpt2-pretrained \
     --per_device_train_batch_size 8 \
     --num_train_epochs 10 \
-    --learning_rate 5e-5 \
+    --learning_rate 1e-4 \
+    --lr_scheduler_type cosine \
+    --warmup_steps 10 \
     --logging_dir $WD/logs \
     --logging_steps 10 \
+    --report_to wandb \
     --save_strategy epoch \
     --save_total_limit 1

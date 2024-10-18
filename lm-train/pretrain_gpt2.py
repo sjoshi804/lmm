@@ -25,7 +25,7 @@ class DataArguments:
     dataset_name: str = field(default="wikitext", metadata={"help": "The name of the dataset to use."})
     dataset_config_name: Optional[str] = field(default=None, metadata={"help": "The config name of the dataset to use."})
     max_length: int = field(default=1024, metadata={"help": "Maximum sequence length for the dataset."})
-
+    split: Optional[str] = field(default="train", metadata={"help": "The dataset split to use."})
 def main():
     # Setup HfArgumentParser for direct argument parsing
     hf_parser = HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
@@ -36,7 +36,7 @@ def main():
     tokenizer.pad_token = tokenizer.eos_token
 
     # Load the dataset
-    dataset = load_dataset(data_args.dataset_name, data_args.dataset_config_name, split="train")
+    dataset = load_dataset(data_args.dataset_name, data_args.dataset_config_name, split=data_args.split)
 
     # Tokenize the dataset with labels
     def tokenize_function(examples):
