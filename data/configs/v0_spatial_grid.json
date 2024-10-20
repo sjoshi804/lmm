@@ -1,0 +1,8 @@
+{
+    "num_samples": 20,
+    "num_rows": 5,
+    "num_cols": 5,
+    "vocab": ["a", "b", "c", "d", "e"],
+    "vocab_subset_size": 2,
+    "num_questions": 10
+}

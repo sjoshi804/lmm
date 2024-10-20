@@ -1,0 +1,157 @@
+import argparse
+import json
+import random
+from datetime import datetime
+from typing import List, Tuple
+
+import datasets
+import pandas as pd
+from loguru import logger
+from tqdm import trange
+import os 
+
+def create_grid(num_rows: int, num_cols: int, vocab: List[str], vocab_subset_size: int) -> List[List[str]]:
+    """
+    Creates a grid with the specified number of rows and columns,
+    randomly sampling objects from the provided vocabulary.
+
+    Parameters:
+    - num_rows: int - The number of rows in the grid.
+    - num_cols: int - The number of columns in the grid.
+    - vocab: List[str] - The vocabulary of objects to populate the grid.
+    - vocab_subset_size: int - The size of the subset of the vocabulary to use.
+
+    Returns:
+    - List[List[str]] - The generated grid.
+    """
+    vocab_subset = random.sample(vocab, vocab_subset_size)
+    grid = [[random.choice(vocab_subset) for _ in range(num_cols)] for _ in range(num_rows)]
+    return grid
+
+def convert_grid_to_str(grid: List[List[str]]) -> str:
+    """
+    Converts a 2D grid into a formatted string.
+
+    Parameters:
+    - grid: List[List[str]] - The grid to convert.
+
+    Returns:
+    - str - The grid formatted as a string.
+    """
+    rows = ['| ' + ' | '.join(row) + ' |' for row in grid]
+    return '\n'.join(rows)
+
+def add_grid_instruction(grid: List[List[str]]) -> str:
+    """
+    Adds an instruction describing the grid.
+
+    Parameters:
+    - grid: List[List[str]] - The grid to describe.
+
+    Returns:
+    - str - The instruction describing the grid.
+    """
+    num_rows = len(grid)
+    num_cols = len(grid[0])
+    used_vocab_subset = set()
+    for row in grid:
+        for element in row:
+            used_vocab_subset.add(element)
+    used_vocab_subset = list(used_vocab_subset)
+    return f"The grid above is size {num_rows} by {num_cols}. Each cell contains an object from {used_vocab_subset}."
+
+def create_position_questions(grid: List[List[str]]) -> List[str]:
+    """
+    Adds questions about the position of each object in the grid.
+
+    Parameters:
+    - grid: List[List[str]] - The grid to generate questions for.
+
+    Returns:
+    - List[str] - The questions about the grid.
+    """
+    questions = []
+    for i in range(len(grid)):
+        for j in range(len(grid[0])):
+            questions.append(f"What object is in row {i}, column {j}? " + f"A: {grid[i][j]}")
+    return questions
+
+def create_dataset_from_json(args) -> datasets.DatasetDict:
+    """
+    Creates a synthetic text dataset based on parameters from a JSON file.
+
+    Parameters:
+    - args: argparse.Namespace - The arguments containing the path to the JSON configuration file.
+
+    Returns:
+    - datasets.DatasetDict - The Hugging Face DatasetDict object containing the synthetic dataset with splits.
+    """
+    # Load parameters from JSON file
+    with open(args.config, 'r') as f:
+        params = json.load(f)
+
+    # Validate parameters
+    required_keys = ['num_samples', 'num_rows', 'num_cols', 'vocab', 'vocab_subset_size']
+    for key in required_keys:
+        if key not in params:
+            raise ValueError(f"JSON file must contain '{key}'.")
+
+    num_samples = dict(params['num_samples'])
+    num_train_samples = int(num_samples['train'])
+    num_val_samples = int(num_samples['validation'])
+    num_test_samples = int(num_samples['test'])
+    total_samples = sum([num_train_samples, num_val_samples, num_test_samples])
+    num_rows = int(params['num_rows'])
+    num_cols = int(params['num_cols'])
+    vocab = list(params['vocab'])
+    vocab_subset_size = int(params['vocab_subset_size'])
+    num_questions = int(params['num_questions'])
+    dataset_name = os.path.basename(args.config).split('.')[0]
+    dt_str = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+
+    logger.info(f"Generating synthetic dataset with {num_samples} samples, {num_rows} rows, {num_cols} columns, and vocabulary: {vocab}")
+
+    samples = []
+    for _ in trange(total_samples, desc="Generating samples"):
+        grid = create_grid(num_rows, num_cols, vocab, vocab_subset_size)
+        sample_str = convert_grid_to_str(grid)
+        sample_str += "\n" + add_grid_instruction(grid)
+        for question in random.sample(create_position_questions(grid), num_questions):
+            sample_str += "\n" + question
+        samples.append({'text': sample_str})
+
+    # Convert to a pandas DataFrame for easier dataset creation
+    df = pd.DataFrame(samples)
+
+    # Save dataset as a Hugging Face-friendly dataset
+    dataset = datasets.Dataset.from_pandas(df)
+    
+    # Split dataset into train, validation, and test sets using the specified sample sizes
+    train_test_split = dataset.train_test_split(test_size=(num_val_samples + num_test_samples) / total_samples)
+    test_val_split = train_test_split['test'].train_test_split(test_size=num_test_samples / (num_val_samples + num_test_samples))
+    
+    # Combine splits into a DatasetDict
+    dataset_dict = datasets.DatasetDict({
+        'train': train_test_split['train'],
+        'validation': test_val_split['train'],
+        'test': test_val_split['test']
+    })
+    
+    logger.info(f"Generated dataset with {len(dataset_dict['train'])} training samples, {len(dataset_dict['validation'])} validation samples, and {len(dataset_dict['test'])} test samples.")
+    
+    # Ensure the output directory exists
+    os.makedirs(args.output_dir, exist_ok=True)
+    dataset_dir = os.path.join(args.output_dir, f"{dataset_name}_{dt_str}")
+    
+    # Save the entire dataset dictionary to disk
+    dataset_dict.save_to_disk(dataset_dir)
+    logger.info(f"Saved dataset to disk at: {dataset_dir}")
+
+    return dataset_dict
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Generate a synthetic text dataset based on a JSON configuration file.")
+    parser.add_argument('--config', type=str, required=True, help='Path to the JSON configuration file.')
+    parser.add_argument('--output_dir', type=str, required=False, default="/home/sjoshi/lmm/data/generated/", help='Path to save the generated dataset.')
+    args = parser.parse_args()
+    dataset = create_dataset_from_json(args)
