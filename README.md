@@ -41,7 +41,8 @@ This folder consists of:
 - Tools for analyzing and visualizing evaluation results.
 
 # To Do
-- [ ] Get pretraining for GPT-2 on WikiText working in LM-Train.
+- [x] Get pretraining for GPT-2 on TinyStories working in LM-Train.
+- [ ] Get pretraining for GPT-2 on synethic data -> vibe eval for good performance
 - [ ] Get training this model with a CLIP encoder, let's call it GPT-2v, working in MM-Train.
 - [ ] Evaluate this model on:
     - [ ] Language-only tasks.
