@@ -23,7 +23,7 @@ deepspeed \
     --lr_scheduler_type cosine \
     --warmup_steps 10 \
     --logging_dir $WD/logs \
-    --logging_steps 10 \
+        --logging_steps 100 \
     --report_to wandb \
     --save_strategy epoch \
     --save_total_limit 1

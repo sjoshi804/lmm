@@ -19,6 +19,6 @@ deepspeed \
     --num_train_epochs 1 \
     --learning_rate 5e-5 \
     --logging_dir $WD/logs \
-    --logging_steps 10 \
+        --logging_steps 100 \
     --save_strategy epoch \
     --save_total_limit 2

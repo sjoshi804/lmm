@@ -28,6 +28,7 @@ class ModelArguments:
 class DataArguments:
     dataset_name: str = field(default="wikitext", metadata={"help": "The name of the dataset to use."})
     dataset_config_name: Optional[str] = field(default=None, metadata={"help": "The config name of the dataset to use."})
+    load_from_disk: bool = field(default=False, metadata={"help": "Whether to load the dataset from disk."})
     max_length: int = field(default=1024, metadata={"help": "Maximum sequence length for the dataset."})
     split: Optional[str] = field(default="train", metadata={"help": "The dataset split to use."})
     cache_dir: str = field(default="/home/sjoshi/lmm/lm-train/tokenized_data/", metadata={"help": "Directory to cache the tokenized dataset."})
@@ -48,7 +49,11 @@ def main():
         tokenized_dataset = load_from_disk(data_args.cache_dir)
     else:
         # Load the dataset
-        dataset = load_dataset(data_args.dataset_name, data_args.dataset_config_name, split=data_args.split)
+        dataset = None
+        if data_args.load_from_disk:
+            dataset = load_from_disk(data_args.dataset_name)[data_args.split]
+        else:
+            dataset = load_dataset(data_args.dataset_name, data_args.dataset_config_name, split=data_args.split)
 
         # Tokenize the dataset with labels
         def tokenize_function(examples):
