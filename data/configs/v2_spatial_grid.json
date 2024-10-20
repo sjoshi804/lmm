@@ -1,0 +1,24 @@
+{
+    "num_samples":
+    {
+        "train": 1000000,
+        "validation": 1000,
+        "test": 1000
+    },
+    "num_rows": 5,
+    "num_cols": 5,
+    "vocab_subset_size": 5,
+    "num_questions": 10,
+    "vocab": [
+        "airplane",
+        "automobile",
+        "bird",
+        "cat",
+        "deer",
+        "dog",
+        "frog",
+        "horse",
+        "ship",
+        "truck"
+    ]
+}

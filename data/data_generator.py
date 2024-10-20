@@ -76,6 +76,22 @@ def create_position_questions(grid: List[List[str]]) -> List[str]:
             questions.append(f"What object is in row {i}, column {j}? " + f"A: {grid[i][j]}")
     return questions
 
+def create_position_assertions(grid: List[List[str]]) -> List[str]:
+    """
+    Adds assertions about the position of each object in the grid.
+
+    Parameters:
+    - grid: List[List[str]] - The grid to generate questions for.
+
+    Returns:
+    - List[str] - The questions about the grid.
+    """
+    assertions = []
+    for i in range(len(grid)):
+        for j in range(len(grid[0])):
+            assertions.append(f"row {i}, column {j}" + f"A: {grid[i][j]}")
+    return assertions
+
 def create_dataset_from_json(args) -> datasets.DatasetDict:
     """
     Creates a synthetic text dataset based on parameters from a JSON file.
