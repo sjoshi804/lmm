@@ -20,7 +20,7 @@ deepspeed \
     --per_device_train_batch_size 8 \
     --num_train_epochs 2 \
     --learning_rate 5e-5 \
-    --logging_dir $WD/logs \
+    --logging_dir $WD/logs \f
     --logging_steps 100 \
     --save_strategy epoch \
     --save_total_limit 1
