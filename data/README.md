@@ -86,5 +86,5 @@ pip install argparse json random datetime typing datasets pandas loguru tqdm
 - Model trained on v3 can generalize to 5x5 grids of v2 quite well (63%)
 - Perhaps to get good language model trained for this, we need some training curriculum:
     - this could be critical even in multimodal setting!
-- However, no generalization to more complex vocab (imagenet vocab)
+- However, no generalization (0%) to more complex vocab (imagenet vocab)
     - the model hallucinates and chooses examples that don't exist
