@@ -43,3 +43,5 @@ lmms_eval/tasks/mlvu/__pycache__/utils.cpython-310.pyc
 **/tokenized_data
 data/generated
 **/tokenizer
+
+**/scratch.ipynb
