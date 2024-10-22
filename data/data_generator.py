@@ -134,7 +134,7 @@ def create_dataset_from_json(args) -> datasets.DatasetDict:
         sample_str += "\n" + add_grid_instruction(grid)
         for question in random.sample(create_position_questions(grid), num_questions):
             sample_str += "\n" + question
-        samples.append({'text': sample_str})
+        samples.append({'text': sample_str, 'grid': grid})
 
     # Convert to a pandas DataFrame for easier dataset creation
     df = pd.DataFrame(samples)
