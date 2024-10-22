@@ -9,7 +9,7 @@ from tqdm import tqdm
 from PIL import Image, ImageDraw
 
 
-def merge_image(grid, final_size=(256, 256)):
+def merge_image(grid, final_size=(256, 256), resized_images=None):
     # Determine the number of rows and columns
     rows = len(grid)
     cols = len(grid[0]) if rows > 0 else 0
@@ -25,58 +25,19 @@ def merge_image(grid, final_size=(256, 256)):
     element_width = available_width // cols
     element_height = available_height // rows
     
-    # Load and resize all images to fit within the calculated element size
-    images = [[Image.open(path).resize((element_width, element_height), Image.Resampling.LANCZOS) 
-               for path in row] for row in grid]
-    
     # Create the new image with a black background
     combined_image = Image.new('RGB', final_size, 'black')
     
     # Place each image in the combined image
-    for row_index, row in enumerate(images):
-        for col_index, img in enumerate(row):
+    for row_index, row in enumerate(grid):
+        for col_index, word in enumerate(row):
+            img = resized_images[word]
             x = col_index * (element_width + border_size)
             y = row_index * (element_height + border_size)
             combined_image.paste(img, (x, y))
     
     return combined_image
-    # Determine the number of rows and columns
-    rows = len(grid)
-    cols = len(grid[0]) if rows > 0 else 0
-    
-    # Set border size
-    border_size = 10
-    
-    # Calculate available width and height for each image
-    total_border_width = (cols - 1) * border_size
-    total_border_height = (rows - 1) * border_size
-    available_width = final_size[0] - total_border_width
-    available_height = final_size[1] - total_border_height
-    element_width = available_width // cols
-    element_height = available_height // rows
-    
-    # Load and resize all images to fit within the calculated element size
-    images = [[Image.open(path).resize((element_width, element_height), Image.Resampling.LANCZOS) 
-               for path in row] for row in grid]
-    
-    # Create the new image with white background
-    combined_image = Image.new('RGB', final_size, 'black')
-    draw = ImageDraw.Draw(combined_image)
-    
-    # Place each image in the combined image
-    for row_index, row in enumerate(images):
-        for col_index, img in enumerate(row):
-            x = col_index * (element_width + border_size)
-            y = row_index * (element_height + border_size)
-            combined_image.paste(img, (x, y))
-            
-            # Draw the black border around the image if it's not the last column/row
-            if col_index < cols - 1:
-                draw.rectangle([x + element_width, y, x + element_width + border_size, y + element_height], fill='black')
-            if row_index < rows - 1:
-                draw.rectangle([x, y + element_height, x + element_width, y + element_height + border_size], fill='black')
 
-    return combined_image
 
 def convert_to_multimodal(args):
     logger.info("Starting conversion to multimodal dataset.")
@@ -103,6 +64,22 @@ def convert_to_multimodal(args):
         images = os.listdir(folder)
         sampled_image_pool[word] = random.sample(images, num_unique_images_per_class)
     
+    # Pre-load and resize images once at the start
+    logger.info("Loading and resizing images.")
+    resized_images = {}
+    element_size = tuple(config["image_size"])  # Final size for individual images in the grid
+    for word, image_list in sampled_image_pool.items():
+        resized_images[word] = [
+            Image.open(os.path.join(image_pool[word], image_name)).resize(element_size, Image.Resampling.LANCZOS)
+            for image_name in image_list
+        ]
+
+    # Convert to dictionary format for fast lookup
+    resized_images_dict = {}
+    for word, images in resized_images.items():
+        for i, img in enumerate(images):
+            resized_images_dict[f"{word}_{i}"] = img
+
     # Path for multimodal dataset
     timestamp = time.strftime("%Y%m%d-%H%M%S")
     multimodal_dataset_path = os.path.join(args.output_dir, os.path.basename(args.config_path).split('.')[0] + '_multimodal_' + timestamp)
@@ -116,19 +93,26 @@ def convert_to_multimodal(args):
     logger.info("Processing dataset splits.")
     for split in dataset.keys():
         new_split = []
-        for id, sample in tqdm(enumerate(dataset[split]), total=len(dataset[split]), desc=f"Processing {split} split"):
+        if split == "train":
+            sample_count = config["multimodal_train_size"]
+            dataset_split = list(enumerate(dataset[split]))[:sample_count]
+        else:
+            dataset_split = list(enumerate(dataset[split]))
+
+        for id, sample in tqdm(dataset_split, total=len(dataset_split), desc=f"Processing {split} split"):
             # If "grid" attribute present, use this as the grid. If not provided, parse the 2d grid from "text" attribute
             grid = sample.get('grid', parse_grid_from_text(sample['text']))
             
             # Map each object to an image from corresponding class from image pool
             for i, row in enumerate(grid):
                 for j, word in enumerate(row):
-                    image_name = random.choice(sampled_image_pool[word])
-                    grid[i][j] = os.path.join(image_pool[word], image_name)
+                    # Select a random image for the word and use the pre-resized image
+                    image_key = f"{word}_{random.randint(0, num_unique_images_per_class - 1)}"
+                    grid[i][j] = image_key
             
             # Merge the images for the grid to create 1 image
             merged_image_path = os.path.join(images_folder, f"{split}_{id}.png")
-            merge_image(grid, tuple(config["image_size"])).save(merged_image_path)
+            merge_image(grid, tuple(config["image_size"]), resized_images=resized_images_dict).save(merged_image_path)
             
             # Replace the grid with the <image_1> tag in the text
             sample['text'] = sample['text'].replace(str(grid), '<image_1>')
@@ -143,6 +127,7 @@ def convert_to_multimodal(args):
             json.dump(new_split, f)
     
     logger.info("Conversion to multimodal dataset completed.")
+
 
 def parse_grid_from_text(grid_str):
     grid_str = '\n'.join(grid_str.split('\n')[:3])

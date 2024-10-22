@@ -20,5 +20,21 @@
         "horse",
         "ship",
         "truck"
-    ]
+    ],
+    "multimodal_train_size": 100000, 
+    "num_unique_images_per_class": 1, 
+    "image_size": [256, 256],
+    "image_pool":
+    {
+        "airplane": "/home/sjoshi/lmm/data/image_pool/hq_download/airplane",
+        "automobile": "/home/sjoshi/lmm/data/image_pool/hq_download/automobile",
+        "bird": "/home/sjoshi/lmm/data/image_pool/hq_download/bird",
+        "cat": "/home/sjoshi/lmm/data/image_pool/hq_download/cat",
+        "deer": "/home/sjoshi/lmm/data/image_pool/hq_download/deer",
+        "dog": "/home/sjoshi/lmm/data/image_pool/hq_download/dog",
+        "frog": "/home/sjoshi/lmm/data/image_pool/hq_download/frog",
+        "horse": "/home/sjoshi/lmm/data/image_pool/hq_download/horse",
+        "ship": "/home/sjoshi/lmm/data/image_pool/hq_download/ship",
+        "truck": "/home/sjoshi/lmm/data/image_pool/hq_download/truck"
+    }
 }
