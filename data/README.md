@@ -78,3 +78,11 @@ Make sure to install the required dependencies:
 ```bash
 pip install argparse json random datetime typing datasets pandas loguru tqdm
 ```
+
+# Training Observations
+
+- Able to train on 1M (population size 2M) for data generated using v3 config and get 90% accuracy on held out set
+- Training on 1M (populatin size >> 2M) for 5x5 data of v2 config doesn't work as well: 26% accuracy on held out set
+- Model trained on v3 can generalize to 5x5 grids of v2 quite well (63%)
+- Perhaps to get good language model trained for this, we need some training curriculum:
+    - this could be critical even in multimodal setting!
