@@ -6,20 +6,21 @@ import time
 from datasets import load_from_disk
 from loguru import logger
 from tqdm import tqdm
-from PIL import Image, ImageDraw
+from PIL import Image
+import re
+from datasets import DatasetDict, Dataset
+import pandas as pd
 
+BORDER_SIZE = 6
 
 def merge_image(grid, final_size=(256, 256), resized_images=None):
     # Determine the number of rows and columns
     rows = len(grid)
     cols = len(grid[0]) if rows > 0 else 0
     
-    # Set border (gap) size between images
-    border_size = 10
-    
     # Calculate available width and height for each image
-    total_border_width = (cols - 1) * border_size
-    total_border_height = (rows - 1) * border_size
+    total_border_width = (cols - 1) * BORDER_SIZE
+    total_border_height = (rows - 1) * BORDER_SIZE
     available_width = final_size[0] - total_border_width
     available_height = final_size[1] - total_border_height
     element_width = available_width // cols
@@ -32,13 +33,30 @@ def merge_image(grid, final_size=(256, 256), resized_images=None):
     for row_index, row in enumerate(grid):
         for col_index, word in enumerate(row):
             img = resized_images[word]
-            x = col_index * (element_width + border_size)
-            y = row_index * (element_height + border_size)
+            x = col_index * (element_width + BORDER_SIZE)
+            y = row_index * (element_height + BORDER_SIZE)
             combined_image.paste(img, (x, y))
     
     return combined_image
 
+def truncate_before_substring(text, substring):
+    index = text.find(substring)
+    if index != -1:
+        return text[index:]
+    return text
 
+def make_multimodal_prompt(text):
+    return "<image_1>\n" + truncate_before_substring(text, "The grid above")
+
+def calculate_element_size(final_size, rows, cols):
+    total_border_width = (cols - 1) * BORDER_SIZE
+    total_border_height = (rows - 1) * BORDER_SIZE
+    available_width = final_size[0] - total_border_width
+    available_height = final_size[1] - total_border_height
+    element_width = available_width // cols
+    element_height = available_height // rows
+    return (element_width, element_height)
+    
 def convert_to_multimodal(args):
     logger.info("Starting conversion to multimodal dataset.")
     
@@ -67,7 +85,10 @@ def convert_to_multimodal(args):
     # Pre-load and resize images once at the start
     logger.info("Loading and resizing images.")
     resized_images = {}
-    element_size = tuple(config["image_size"])  # Final size for individual images in the grid
+    rows, cols = config["num_rows"], config["num_cols"]
+    
+    element_size = calculate_element_size(config["image_size"], rows, cols)
+
     for word, image_list in sampled_image_pool.items():
         resized_images[word] = [
             Image.open(os.path.join(image_pool[word], image_name)).resize(element_size, Image.Resampling.LANCZOS)
@@ -88,9 +109,10 @@ def convert_to_multimodal(args):
     # Create an images subfolder
     images_folder = os.path.join(multimodal_dataset_path, 'images')
     os.makedirs(images_folder, exist_ok=True)
-    
     # For each split in dataset
     logger.info("Processing dataset splits.")
+    multimodal_splits = {}
+
     for split in dataset.keys():
         new_split = []
         if split == "train":
@@ -115,16 +137,19 @@ def convert_to_multimodal(args):
             merge_image(grid, tuple(config["image_size"]), resized_images=resized_images_dict).save(merged_image_path)
             
             # Replace the grid with the <image_1> tag in the text
-            sample['text'] = sample['text'].replace(str(grid), '<image_1>')
+            sample['text'] = make_multimodal_prompt(sample['text'])
             sample['image_1'] = merged_image_path
             
             new_split.append(sample)
         
-        # Save the new split
-        split_path = os.path.join(multimodal_dataset_path, f"{split}.json")
-        logger.info(f"Saving new split to {split_path}.")
-        with open(split_path, 'w') as f:
-            json.dump(new_split, f)
+        # Convert the new split to a Huggingface Dataset
+        df = pd.DataFrame(new_split)
+        multimodal_splits[split] = Dataset.from_pandas(df)
+    
+    # Save the new multimodal dataset
+    multimodal_dataset = DatasetDict(multimodal_splits)
+    logger.info(f"Saving new multimodal dataset to {multimodal_dataset_path}.")
+    multimodal_dataset.save_to_disk(multimodal_dataset_path)
     
     logger.info("Conversion to multimodal dataset completed.")
 
