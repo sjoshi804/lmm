@@ -9,10 +9,10 @@ LM-Train contains code written entirely by us for pre-training small GPT-2 size 
 Data is a module entirely written by us for generating synthetic data. This section includes scripts and tools to create datasets that can be used for training and evaluating models.
 
 ## MM-Train
-MM-Train is a fork of the lmms-finetune repository, adapted for training vision-language models (VLMs) that merge image encoders with pre-trained language models. This section focuses on fine-tuning models to handle multimodal inputs.
+MM-Train contains our custom code for integrating image encoders with pre-trained language models. This section is dedicated to fine-tuning vision-language models (VLMs) to effectively process and understand multimodal inputs.
 
 ## Eval
-Eval is a fork of the lmms-eval repository, designed for evaluating language models and vision-language models. It supports both text-only and multimodal evaluation tasks.
+Eval includes our proprietary scripts and tools for assessing the performance of both language models and vision-language models. This section provides resources for conducting comprehensive evaluations on text-only and multimodal tasks.
 
 # Repository Structure
 
@@ -42,8 +42,12 @@ This folder consists of:
 
 # To Do
 - [x] Get pretraining for GPT-2 on TinyStories working in LM-Train.
-- [ ] Get pretraining for GPT-2 on synethic data -> vibe eval for good performance
+- [x] Get pretraining for GPT-2 on synthetic data -> vibe eval for good performance
 - [ ] Get training this model with a CLIP encoder, let's call it GPT-2v, working in MM-Train.
 - [ ] Evaluate this model on:
-    - [ ] Language-only tasks.
+    - [x] Language-only tasks.
     - [ ] Multimodal tasks.
+
+# Ablations
+- [ ] Scale # images v/s # q/a per images
+- [ ] Multi-instruction data v/s Single Instruction Data
