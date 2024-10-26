@@ -1,31 +1,67 @@
+from torch.utils.data import Dataset
+from typing import Dict, List
+from PIL import Image
+from datasets import load_from_disk
+import torchvision.transforms as transforms
+
 class LazySupervisedDataset(Dataset):
-    """Dataset for supervised fine-tuning 
-    which is generalized enough to handle both images and videos.
-    """
+    """Dataset for multimodal supervised fine-tuning"""
 
     def __init__(
         self, 
         data_path: str, 
-        user_key: str = "human",
-        assistant_key: str = "gpt",
+        split: str,
+        image_transforms: transforms.Compose = None
     ) -> None:
         super(LazySupervisedDataset, self).__init__()
-        self.list_data_dict = json.load(open(data_path, "r"))
-        self.load_image = TO_LOAD_IMAGE[model_family_id]
-        self.user_key = user_key
-        self.assistant_key = assistant_key
+        
+        hf_dataset = load_from_disk(data_path)[split]
+        list_data_dict = []
+        for sample in hf_dataset:
+            prompt = sample.get("prompt", "")
+            conversations = sample.get("conversations", [])
+            list_data_dict.append(
+            {
+                "image": sample.get("image", None),
+                "prompt": prompt,
+                "conversations": conversations
+            })
+        
 
+        # Determine whether each sample is text-only
         self.is_text_only = [
-            "image" not in source and "video" not in source
-            for source in self.list_data_dict
+            "image" not in source for source in self.list_data_dict
         ]
+
+        # Image transformation if needed
+        if image_transforms is None:
+            self.image_transforms = transforms.Compose([
+                transforms.Resize((224, 224)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+            ])
+        else:
+            self.image_transforms = image_transforms
 
     def __len__(self) -> int:
         return len(self.list_data_dict)
 
-    def __getitem__(self, i) -> Dict[str, List]:      
+    def __getitem__(self, i) -> Dict[str, List]:
+        # Retrieve the sample data
+        sample = self.list_data_dict[i]
+
+        # Load image if available
+        if not self.is_text_only[i]:
+            if "image" in sample:
+                image_path = sample["image"]
+                image = Image.open(image_path).convert("RGB")
+                image = self.image_transforms(image)  # Apply transformations
+        else:
+            image = None  # No image for text-only samples
+
+        # Return the sample in the expected format
         return dict(
-            images=images,
-            conversations=convs,
-            system_prompt=system_prompt
+            images=image,
+            conversations=sample["conversations"],
+            prompt=sample["prompt"]
         )
