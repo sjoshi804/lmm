@@ -25,17 +25,6 @@ This repository provides a minimal framework for pre-training GPT-2 language mod
     python train.py
     ```
 
-## Adding New Experiments
-To add a new experiment, specify the overrides in the `config/overrides` folder. For example:
-```yaml
-# config/overrides/new_experiment.yaml
-dataset: custom_dataset
-model: gpt2
-training:
-  epochs: 10
-  batch_size: 32
-```
-
 ## License
 This project is licensed under the MIT License.
 

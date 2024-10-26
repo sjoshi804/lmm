@@ -1,9 +1,9 @@
 import os
 from dataclasses import dataclass, field
-from transformers import GPTJForCausalLM, HfArgumentParser, TrainingArguments
+from transformers import GPTJForCausalLM, HfArgumentParser, TrainingArguments, Trainer
 from utils import prepare_multimodal_data, load_vision_encoder, load_multimodal_projector
-from gptj_vlm import GPTJ_VLM
-from custom_sft_trainer import CustomSFTTrainer
+from gptj_vlm import GPTJ_VLM, GPTJ_VLM_DataCollator
+from mm_datasets import LazySupervisedDataset 
 
 # Define data-specific arguments
 @dataclass
@@ -55,14 +55,14 @@ def main():
     model = GPTJ_VLM(gptj, vision_encoder, multimodal_projector)
 
     # Prepare the dataset using the function in utils.py
-    dataset = prepare_multimodal_data(data_args.data_path)
+    dataset = LazySupervisedDataset(data_args.data_path)
 
-    # Initialize the Custom SFT Trainer
-    trainer = CustomSFTTrainer(
+    # Initialize the Hugging Face Trainer
+    trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=dataset,
-        data_collator=None,
+        data_collator=GPTJ_VLM_DataCollator,
         tokenizer=gptj.tokenizer,
     )
 

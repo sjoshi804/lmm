@@ -5,7 +5,6 @@ from dataclasses import dataclass, field
 from typing import Optional
 import os
 import re
-import torch
 
 def replace_non_alphanumeric(input_string):
     return re.sub(r'[^a-zA-Z0-9]', '_', input_string)

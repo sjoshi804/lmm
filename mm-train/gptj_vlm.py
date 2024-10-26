@@ -20,3 +20,13 @@ class GPTJ_VLM(nn.Module):
         # Placeholder output
         outputs = ...
         return outputs
+
+class GPTJ_VLM_DataCollator:
+    def __call__(self, examples):
+        # Collate examples into batch
+        # Tokenize inputs and targets
+        # Return the appropriate format for Hugging Face Trainer
+        
+        # Placeholder output
+        batch = ...
+        return batch
