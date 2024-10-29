@@ -5,7 +5,7 @@ RUN_ID=tinystories_val
 deepspeed \
     --include localhost:3,4,5,6,7 \
     --master_port 29501 \
-    $WD/pretrain_gptj.py \
+    $WD/pretrain_lm.py \
     --deepspeed $WD/ds_configs/zero3.json \
     --vocab_size 50257 \
     --n_positions 1024 \
