@@ -1,7 +1,7 @@
 import os
 from dataclasses import dataclass, field
 from transformers import GPTJForCausalLM, HfArgumentParser, TrainingArguments, Trainer, AutoTokenizer
-from utils import prepare_multimodal_data, load_vision_encoder, load_multimodal_projector
+from utils import load_vision_encoder, load_multimodal_projector
 from gptj_vlm import GPTJ_VLM, GPTJ_VLM_DataCollator
 from mm_datasets import LazySupervisedDataset 
 
@@ -22,19 +22,26 @@ class ModelArguments:
         metadata={"help": "Path to the pretrained GPT-J model."}
     )
     freeze_lm: bool = field(
-        default=False, metadata={"help": "Whether to freeze the language model."}
+        default=True, metadata={"help": "Whether to freeze the language model."}
     )
     freeze_multimodal_projector: bool = field(
         default=False, metadata={"help": "Whether to freeze the multimodal projector."}
     )
     freeze_vision_encoder: bool = field(
-        default=False, metadata={"help": "Whether to freeze the vision encoder."}
+        default=True, metadata={"help": "Whether to freeze the vision encoder."}
+    )
+    vision_encoder: str = field(
+        default="clip", metadata={"help": "Type of vision encoder to use (e.g. 'clip')."}
+    )
+    multimodal_projector: str = field(
+        default="linear", metadata={"help": "Type of multimodal projector to use (e.g. 'linear')."}
     )
 
 def main():
     # Parse arguments
     parser = HfArgumentParser((ModelArguments, DataArguments, TrainingArguments))
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
+    training_args.remove_unused_columns = False
     
     # Load the GPT-J model
     gptj = GPTJForCausalLM.from_pretrained(model_args.gptj_model_path)
@@ -60,15 +67,14 @@ def main():
     model = GPTJ_VLM(gptj, vision_encoder, multimodal_projector, tokenizer)
 
     # Prepare the dataset using the function in utils.py
-    dataset = LazySupervisedDataset(data_args.data_path, data_args.split, image_transforms)
+    dataset = LazySupervisedDataset(data_args.data_path, data_args.split)
 
     # Initialize the Hugging Face Trainer
     trainer = Trainer(
         model=model,
         args=training_args,
         train_dataset=dataset,
-        data_collator=GPTJ_VLM_DataCollator,
-        tokenizer=tokenizer,
+        data_collator=GPTJ_VLM_DataCollator(tokenizer, image_transforms),
     )
 
     # Train the model

@@ -16,11 +16,11 @@ class LazySupervisedDataset(Dataset):
         super(LazySupervisedDataset, self).__init__()
         
         hf_dataset = load_from_disk(data_path)[split]
-        list_data_dict = []
+        self.list_data_dict = []
         for sample in hf_dataset:
             prompt = sample.get("prompt", "")
             conversations = sample.get("conversations", [])
-            list_data_dict.append(
+            self.list_data_dict.append(
             {
                 "image": sample.get("image", None),
                 "prompt": prompt,
@@ -47,21 +47,9 @@ class LazySupervisedDataset(Dataset):
         return len(self.list_data_dict)
 
     def __getitem__(self, i) -> Dict[str, List]:
-        # Retrieve the sample data
         sample = self.list_data_dict[i]
-
-        # Load image if available
-        if not self.is_text_only[i]:
-            if "image" in sample:
-                image_path = sample["image"]
-                image = Image.open(image_path).convert("RGB")
-                image = self.image_transforms(image)  # Apply transformations
-        else:
-            image = None  # No image for text-only samples
-
-        # Return the sample in the expected format
         return dict(
-            images=image,
-            conversations=sample["conversations"],
-            prompt=sample["prompt"]
+            image=Image.open(sample["image"]).convert("RGB"),
+            prompt=sample["prompt"],
+            conversations=sample["conversations"]
         )
