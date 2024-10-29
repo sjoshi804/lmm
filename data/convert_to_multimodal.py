@@ -2,7 +2,6 @@ import argparse
 import json
 import os
 import random
-import time
 from datasets import load_from_disk
 from loguru import logger
 from tqdm import tqdm
@@ -45,8 +44,28 @@ def truncate_before_substring(text, substring):
         return text[index:]
     return text
 
-def make_multimodal_prompt(text):
-    return "<image_1>\n" + truncate_before_substring(text, "The grid above")
+def prepare_for_multimodal(text):
+    # Find the start of "The grid above" and split from there
+    grid_start_index = text.find("The grid above")
+    processed_string = text[grid_start_index:]
+
+    # Split into "prompt" and "questions/answers" based on "]"
+    split_parts = processed_string.split("].")
+    prompt = split_parts[0].strip() + "]."  # Re-add the "]" and the "." at the end of the prompt
+    questions_answers = split_parts[1].strip()
+
+    # Split the questions and answers into tuples
+    qa_pairs = []
+    lines = questions_answers.split("\n")
+    for line in lines:
+        if line.strip():
+            question_end = line.find("?")
+            if question_end != -1:
+                question = line[:question_end + 1].strip()
+                answer = line[question_end + 1:].strip()
+                qa_pairs.append((question, answer))
+    
+    return prompt, qa_pairs
 
 def calculate_element_size(final_size, rows, cols):
     total_border_width = (cols - 1) * BORDER_SIZE
@@ -102,9 +121,8 @@ def convert_to_multimodal(args):
             resized_images_dict[f"{word}_{i}"] = img
 
     # Path for multimodal dataset
-    timestamp = time.strftime("%Y%m%d-%H%M%S")
-    multimodal_dataset_path = os.path.join(args.output_dir, os.path.basename(args.config_path).split('.')[0] + '_multimodal_' + timestamp)
-    os.makedirs(multimodal_dataset_path, exist_ok=True)
+    multimodal_dataset_path = os.path.join(args.output_dir, os.path.basename(args.config_path).split('.')[0] + '_multimodal')
+    os.makedirs(multimodal_dataset_path)
     
     # Create an images subfolder
     images_folder = os.path.join(multimodal_dataset_path, 'images')
@@ -137,8 +155,8 @@ def convert_to_multimodal(args):
             merge_image(grid, tuple(config["image_size"]), resized_images=resized_images_dict).save(merged_image_path)
             
             # Replace the grid with the <image_1> tag in the text
-            sample['text'] = make_multimodal_prompt(sample['text'])
-            sample['image_1'] = merged_image_path
+            sample['prompt'], sample['conversations'] = prepare_for_multimodal(sample['text'])
+            sample['image'] = merged_image_path
             
             new_split.append(sample)
         
