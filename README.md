@@ -2,6 +2,12 @@
 
 Welcome to our repository! This project is structured to facilitate the pre-training, fine-tuning, and evaluation of language models (LMs) and vision-language models (VLMs). Below is an overview of the main components of the repository:
 
+To use this project with imports across directories, run
+```bash 
+pip install -e . 
+```
+from the root folder. 
+
 ## LM-Train
 LM-Train contains code written entirely by us for pre-training small GPT-2 size language models. This section is dedicated to the initial training phase using synthetic or real text data.
 
