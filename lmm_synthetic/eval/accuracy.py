@@ -31,7 +31,7 @@ def load_dataset(dataset_path):
     return load_from_disk(dataset_path)
 
 
-def generate_texts(model, tokenizer, prompts, max_new_tokens=50, max_length=512):
+def generate_responses_lm(model, tokenizer, prompts, max_new_tokens=50, max_length=512):
     """
     Generate texts from the model for a batch of prompts.
     """
@@ -46,6 +46,60 @@ def generate_texts(model, tokenizer, prompts, max_new_tokens=50, max_length=512)
             early_stopping=True
         )
     return [tokenizer.decode(output, skip_special_tokens=True) for output in outputs]
+
+def generate_responses_vlm(model, tokenizer, image_tensors, prompts, max_new_tokens=50, max_length=512):
+    """
+    Generate text responses from the model for a batch of image and text prompts.
+    
+    Args:
+        model: GPTJ_VLM model for multimodal inference.
+        tokenizer: Tokenizer corresponding to the model.
+        image_tensors: A batch of preprocessed image tensors (shape: [batch_size, *image_dim]).
+        prompts: A list of text prompts corresponding to the images.
+        max_new_tokens: Maximum number of new tokens to generate.
+        max_length: Maximum length of the sequence.
+    
+    Returns:
+        A list of generated text responses.
+    """
+    # Tokenize text prompts
+    inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True, max_length=max_length)
+    text_input_ids = inputs['input_ids']
+    attention_mask = inputs['attention_mask']
+
+    # Pass through the model
+    with torch.no_grad():
+        # Generate image embeddings
+        image_embeds = model.multimodal_projector(model.vision_encoder(image_tensors))
+
+        # Generate text embeddings for input prompts
+        text_embeds = model.gptj.transformer.wte(text_input_ids)
+
+        # Concatenate image embeddings with text embeddings
+        inputs_embeds = torch.cat([image_embeds, text_embeds], dim=1)
+
+        # Adjust attention mask for the image tokens
+        batch_size, num_image_tokens, _ = image_embeds.shape
+        adjusted_attention_mask = torch.cat(
+            [torch.ones((batch_size, num_image_tokens), dtype=torch.long, device=image_embeds.device), attention_mask],
+            dim=1
+        )
+
+        # Generate outputs
+        outputs = model.gptj.generate(
+            inputs_embeds=inputs_embeds,
+            attention_mask=adjusted_attention_mask,
+            max_new_tokens=max_new_tokens,
+            num_return_sequences=1,
+            no_repeat_ngram_size=2,
+            pad_token_id=tokenizer.eos_token_id,
+            early_stopping=True
+        )
+
+    # Decode the generated outputs
+    responses = [tokenizer.decode(output, skip_special_tokens=True) for output in outputs]
+
+    return responses
 
 def parse_answer(text):
     """
@@ -66,7 +120,7 @@ def parse_grid(grid_str, K):
     return [[cell.strip() for cell in row.split('|') if cell.strip()] for row in rows]
 
 
-def evaluate_model_on_dataset(model, tokenizer, dataset, K, multimodal=False, num_samples=250):
+def evaluate_model_on_dataset(model, tokenizer, dataset, K, num_samples=250, multimodal=False):
     """
     Evaluate the model on the given dataset and compute accuracy.
     """
@@ -75,22 +129,29 @@ def evaluate_model_on_dataset(model, tokenizer, dataset, K, multimodal=False, nu
     correct_per_pos = {}
 
     logger.info(f"Starting evaluation on {num_samples} grids")
-    pbar = tqdm(dataset['validation'], total=num_samples)
-
-    for example in pbar:
+    pbar = tqdm(enumerate(dataset['validation']), total=num_samples)
+    
+    for i, example in pbar:
         num_grids += 1
-        prompt = example["text"].split(']')[0] + '].'
-        grid = parse_grid(prompt, K)
+        text_prompt = example["text"].split(']')[0] + '].'
+        grid = parse_grid(text_prompt, K)
 
+        prompt = example["prompt"] if multimodal else text_prompt 
+        
         # Generate prompts for all positions in the grid
         position_prompts = [
             prompt + f"\nWhat object is in row {i}, column {j}?"
             for i in range(K) for j in range(K)
         ]
-        generated_texts = generate_texts(model, tokenizer, position_prompts, max_new_tokens=5)
+        
+        if i == 0:
+            logger.debug(text_prompt)
+            logger.debug(position_prompts[0])
+            
+        responses = generate_responses_lm(model, tokenizer, position_prompts, max_new_tokens=5)
 
         # Evaluate predictions
-        for idx, text in enumerate(generated_texts):
+        for idx, text in enumerate(responses):
             i, j = divmod(idx, K)
             total_per_pos[(i, j)] = total_per_pos.get((i, j), 0) + 1
             parsed_answer = parse_answer(text)
@@ -154,7 +215,7 @@ def main():
     parser = argparse.ArgumentParser(description="Evaluate model accuracy on a dataset")
     parser.add_argument("--model_path", type=str, required=True, help="Path to the model")
     parser.add_argument("--dataset_path", type=str, required=True, help="Path to the dataset")
-    parser.add_argument("--K", type=int, default=5, help="Size of the grid (KxK)")
+    parser.add_argument("--K", type=int, default=3, help="Size of the grid (KxK)")
     parser.add_argument("--num_samples", type=int, default=250, help="Number of grids to evaluate")
 
     args = parser.parse_args()
