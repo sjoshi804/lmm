@@ -9,7 +9,8 @@ from transformers import GPTJForCausalLM, AutoTokenizer
 from datasets import load_from_disk
 import numpy as np
 import os
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
+
 
 def load_model_and_tokenizer(model_path):
     """
@@ -21,6 +22,7 @@ def load_model_and_tokenizer(model_path):
     model.eval()
     return model, tokenizer
 
+
 def load_dataset(dataset_path):
     """
     Load the dataset from the specified path.
@@ -28,20 +30,22 @@ def load_dataset(dataset_path):
     logger.info(f"Loading dataset from {dataset_path}")
     return load_from_disk(dataset_path)
 
-def generate_text(model, tokenizer, prompt, max_new_tokens=50):
+
+def generate_texts(model, tokenizer, prompts, max_new_tokens=50, max_length=512):
     """
-    Generate text from the model given a prompt.
+    Generate texts from the model for a batch of prompts.
     """
-    inputs = tokenizer(prompt, return_tensors="pt")
+    inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True, max_length=max_length)
     with torch.no_grad():
         outputs = model.generate(
             inputs.input_ids,
             max_new_tokens=max_new_tokens,
             num_return_sequences=1,
             no_repeat_ngram_size=2,
-            pad_token_id=tokenizer.eos_token_id
+            pad_token_id=tokenizer.eos_token_id,
+            early_stopping=True
         )
-    return tokenizer.decode(outputs[0], skip_special_tokens=True)
+    return [tokenizer.decode(output, skip_special_tokens=True) for output in outputs]
 
 def parse_answer(text):
     """
@@ -52,6 +56,7 @@ def parse_answer(text):
         return match.group(1).split('\n')[0]
     return None
 
+
 def parse_grid(grid_str, K):
     """
     Parse the grid string into a 2D list of grid cells.
@@ -60,7 +65,8 @@ def parse_grid(grid_str, K):
     rows = grid_str.strip().split('\n')
     return [[cell.strip() for cell in row.split('|') if cell.strip()] for row in rows]
 
-def evaluate_model_on_dataset(model, tokenizer, dataset, K, num_samples=250):
+
+def evaluate_model_on_dataset(model, tokenizer, dataset, K, multimodal=False, num_samples=250):
     """
     Evaluate the model on the given dataset and compute accuracy.
     """
@@ -76,34 +82,42 @@ def evaluate_model_on_dataset(model, tokenizer, dataset, K, num_samples=250):
         prompt = example["text"].split(']')[0] + '].'
         grid = parse_grid(prompt, K)
 
-        for i in range(K):
-            for j in range(K):
-                total_per_pos[(i, j)] = total_per_pos.get((i, j), 0) + 1
-                current_prompt = prompt + f"\nWhat object is in row {i}, column {j}?"
-                parsed_answer = parse_answer(generate_text(model, tokenizer, current_prompt, max_new_tokens=5))
-                if parsed_answer == grid[i][j]:
-                    correct_per_pos[(i, j)] = correct_per_pos.get((i, j), 0) + 1
-                accuracy = sum(correct_per_pos.values()) / sum(total_per_pos.values())
-                pbar.set_description(f'Accuracy: {accuracy:.3f}')
-        
+        # Generate prompts for all positions in the grid
+        position_prompts = [
+            prompt + f"\nWhat object is in row {i}, column {j}?"
+            for i in range(K) for j in range(K)
+        ]
+        generated_texts = generate_texts(model, tokenizer, position_prompts, max_new_tokens=5)
+
+        # Evaluate predictions
+        for idx, text in enumerate(generated_texts):
+            i, j = divmod(idx, K)
+            total_per_pos[(i, j)] = total_per_pos.get((i, j), 0) + 1
+            parsed_answer = parse_answer(text)
+            if parsed_answer == grid[i][j]:
+                correct_per_pos[(i, j)] = correct_per_pos.get((i, j), 0) + 1
+
+        accuracy = sum(correct_per_pos.values()) / sum(total_per_pos.values())
+        pbar.set_description(f'Accuracy: {accuracy:.3f}')
+
         if num_grids == num_samples:
             break
-    
+
     accuracy_per_pos = {pos: correct_per_pos[pos] / total_per_pos[pos] for pos in total_per_pos}
-    
     return accuracy_per_pos, accuracy
+
 
 def save_results(accuracy_per_pos, accuracy, model_path, dataset_path, file_path):
     """
     Save results to a JSON file.
     """
     results = {
-        "accuracy_per_pos": accuracy_per_pos,
+        "accuracy_per_pos": {str(pos): acc for pos, acc in accuracy_per_pos.items()},
         "accuracy": accuracy,
         "model_path": model_path,
         "dataset_path": dataset_path
     }
-    
+
     with open(file_path, 'w') as f:
         json.dump(results, f, indent=3)
 
@@ -135,6 +149,7 @@ def plot_results(accuracy_per_pos, K, file_path):
     plt.savefig(output_file_path)
     plt.close()
 
+
 def main():
     parser = argparse.ArgumentParser(description="Evaluate model accuracy on a dataset")
     parser.add_argument("--model_path", type=str, required=True, help="Path to the model")
@@ -146,6 +161,7 @@ def main():
     # Create results directory if it doesn't exist
     os.makedirs("results", exist_ok=True)
     args.output_file = "results/" + datetime.now().strftime('%Y%m%d_%H%M%S') + ".json"
+    args.multimodal = "multimodal" in args.dataset_path
 
     # Load model, tokenizer, and dataset
     model, tokenizer = load_model_and_tokenizer(args.model_path)
@@ -154,13 +170,12 @@ def main():
     # Evaluate the model on the dataset
     accuracy_per_pos, accuracy = evaluate_model_on_dataset(model, tokenizer, dataset, args.K, args.num_samples)
 
-
-
     # Save the results
-    save_results(accuracy_per_pos, accuracy, args.model_path, args.dataset_path, args.output_file)  
+    save_results(accuracy_per_pos, accuracy, args.model_path, args.dataset_path, args.output_file)
     plot_results(accuracy_per_pos, args.K, args.output_file)
-    
+
     logger.info(f"Final accuracy: {accuracy:.3f}")
+
 
 if __name__ == "__main__":
     main()
