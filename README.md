@@ -43,7 +43,8 @@ This folder consists of:
 # To Do
 - [x] Get pretraining for GPT-2 on TinyStories working in LM-Train.
 - [x] Get pretraining for GPT-2 on synthetic data -> vibe eval for good performance
-- [ ] Get training this model with a CLIP encoder, let's call it GPT-2v, working in MM-Train.
+- [x] Get training this model with a CLIP encoder, let's call it GPT-2v, working in MM-Train.
+- [ ] Different LR for different components
 - [ ] Evaluate this model on:
     - [x] Language-only tasks.
     - [ ] Multimodal tasks.
