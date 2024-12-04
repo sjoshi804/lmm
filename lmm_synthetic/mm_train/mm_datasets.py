@@ -11,7 +11,7 @@ class LazySupervisedDataset(Dataset):
         self, 
         data_path: str, 
         split: str,
-        image_transforms: transforms.Compose = None
+        max_data_size: int = -1
     ) -> None:
         super(LazySupervisedDataset, self).__init__()
         
@@ -26,22 +26,14 @@ class LazySupervisedDataset(Dataset):
                 "prompt": prompt,
                 "conversations": conversations
             })
-        
+        if max_data_size > 0:
+            self.list_data_dict = self.list_data_dict[:max_data_size]
+        print("Dataset size:", len(self.list_data_dict))
 
         # Determine whether each sample is text-only
         self.is_text_only = [
             "image" not in source for source in self.list_data_dict
         ]
-
-        # Image transformation if needed
-        if image_transforms is None:
-            self.image_transforms = transforms.Compose([
-                transforms.Resize((224, 224)),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ])
-        else:
-            self.image_transforms = image_transforms
 
     def __len__(self) -> int:
         return len(self.list_data_dict)

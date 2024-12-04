@@ -21,11 +21,13 @@ def load_model_and_tokenizer(model_path, multimodal=False):
     Load the model and tokenizer from the specified path.
     """
     logger.info(f"Loading model and tokenizer from {model_path}")
-    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    model, tokenizer = None, None
     if multimodal:
-        model = GPTJ_VLM.from_
+        model = GPTJ_VLM.from_pretrained(model_path)
+        tokenizer = AutoTokenizer.from_pretrained(model.config.pretrained_lm_path)
     else:
         model = GPTJForCausalLM.from_pretrained(model_path)
+        tokenizer = AutoTokenizer.from_pretrained(model_path)
     model.eval()
     return model, tokenizer
 
@@ -38,9 +40,32 @@ def load_dataset(dataset_path):
 
 def generate_responses_lm(model, tokenizer, prompts, max_new_tokens=50, max_length=512):
     """
-    Generate texts from the model for a batch of prompts.
+    Generate texts from the model for a batch of prompts using GPU if available.
+    
+    Args:
+        model: Language model for inference.
+        tokenizer: Tokenizer corresponding to the model.
+        prompts: A list of text prompts.
+        max_new_tokens: Maximum number of new tokens to generate.
+        max_length: Maximum length of the input sequence.
+    
+    Returns:
+        A list of generated text responses.
     """
-    inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True, max_length=max_length)
+    # Ensure the model is on GPU
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
+
+    # Tokenize prompts and move inputs to GPU
+    inputs = tokenizer(
+        prompts,
+        return_tensors="pt",
+        padding=True,
+        truncation=True,
+        max_length=max_length
+    ).to(device)
+
+    # Generate responses for the batch
     with torch.no_grad():
         outputs = model.generate(
             inputs.input_ids,
@@ -50,11 +75,16 @@ def generate_responses_lm(model, tokenizer, prompts, max_new_tokens=50, max_leng
             pad_token_id=tokenizer.eos_token_id,
             early_stopping=True
         )
-    return [tokenizer.decode(output, skip_special_tokens=True) for output in outputs]
+    
+    # Decode the generated outputs
+    responses = [tokenizer.decode(output, skip_special_tokens=True) for output in outputs]
+    
+    return responses
+
 
 def generate_responses_vlm(model, tokenizer, image_tensors, prompts, max_new_tokens=50, max_length=512):
     """
-    Generate text responses from the model for a batch of image and text prompts.
+    Generate text responses from the model for a batch of image and text prompts on GPU.
     
     Args:
         model: GPTJ_VLM model for multimodal inference.
@@ -67,44 +97,41 @@ def generate_responses_vlm(model, tokenizer, image_tensors, prompts, max_new_tok
     Returns:
         A list of generated text responses.
     """
-    # Tokenize text prompts
-    inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True, max_length=max_length)
-    text_input_ids = inputs['input_ids']
-    attention_mask = inputs['attention_mask']
+    # Ensure the model is on GPU
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    model = model.to(device)
 
-    # Pass through the model
+    # Tokenize text prompts for the batch and move to GPU
+    inputs = tokenizer(
+        prompts,
+        return_tensors="pt",
+        padding=True,
+        truncation=True,
+        max_length=max_length
+    )
+    text_input_ids = inputs['input_ids'].to(device)
+
+    # Ensure image tensors are on the GPU
+    image_tensors = image_tensors.to(device)
+
+    # Generate responses for the entire batch
     with torch.no_grad():
-        # Generate image embeddings
-        image_embeds = model.multimodal_projector(model.vision_encoder(image_tensors))
-
-        # Generate text embeddings for input prompts
-        text_embeds = model.gptj.transformer.wte(text_input_ids)
-
-        # Concatenate image embeddings with text embeddings
-        inputs_embeds = torch.cat([image_embeds, text_embeds], dim=1)
-
-        # Adjust attention mask for the image tokens
-        batch_size, num_image_tokens, _ = image_embeds.shape
-        adjusted_attention_mask = torch.cat(
-            [torch.ones((batch_size, num_image_tokens), dtype=torch.long, device=image_embeds.device), attention_mask],
-            dim=1
-        )
-
-        # Generate outputs
-        outputs = model.gptj.generate(
-            inputs_embeds=inputs_embeds,
-            attention_mask=adjusted_attention_mask,
-            max_new_tokens=max_new_tokens,
-            num_return_sequences=1,
+        outputs = model.generate(
+            images=image_tensors,
+            text_input_ids=text_input_ids,
+            max_length=max_length + max_new_tokens,  # Include space for new tokens
+            num_beams=1,  # Default to greedy decoding
             no_repeat_ngram_size=2,
-            pad_token_id=tokenizer.eos_token_id,
+            pad_token_id=tokenizer.pad_token_id,
+            eos_token_id=tokenizer.eos_token_id,
             early_stopping=True
         )
 
-    # Decode the generated outputs
-    responses = [tokenizer.decode(output, skip_special_tokens=True) for output in outputs]
+    # Decode the generated outputs for the batch
+    responses = tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
     return responses
+
 
 def parse_answer(text):
     """
@@ -139,6 +166,9 @@ def evaluate_model_on_dataset(model, tokenizer, dataset, K, num_samples=250, mul
     _, image_transforms, _ = load_vision_encoder("clip")
     
     for i, example in pbar:
+        if num_grids == num_samples:
+            break
+        
         num_grids += 1
         text_prompt = example["text"].split(']')[0] + '].'
         grid = parse_grid(text_prompt, K)
@@ -152,8 +182,7 @@ def evaluate_model_on_dataset(model, tokenizer, dataset, K, num_samples=250, mul
         ]
         
         if i == 0:
-            logger.debug(prompt)
-            logger.debug(position_prompts[0])
+            logger.debug(f"Sample Question (0,0): {position_prompts[0]}")
             
         if multimodal:
             image_tensor = image_transforms(Image.open(example["image"])).unsqueeze(0)
@@ -174,10 +203,7 @@ def evaluate_model_on_dataset(model, tokenizer, dataset, K, num_samples=250, mul
         accuracy = sum(correct_per_pos.values()) / sum(total_per_pos.values())
         pbar.set_description(f'Accuracy: {accuracy:.3f}')
 
-        if num_grids == num_samples:
-            break
-
-    accuracy_per_pos = {pos: correct_per_pos[pos] / total_per_pos[pos] for pos in total_per_pos}
+    accuracy_per_pos = {pos:  correct_per_pos.get((i, j), 0) / total_per_pos[pos] for pos in total_per_pos}
     return accuracy_per_pos, accuracy
 
 
@@ -235,21 +261,26 @@ def main():
     # Create results directory if it doesn't exist
     os.makedirs("results", exist_ok=True)
     args.output_file = "results/" + datetime.now().strftime('%Y%m%d_%H%M%S') + ".json"
-    args.multimodal = "multimodal" in args.dataset_path
+    args.multimodal_data = "multimodal" in args.dataset_path
+    with open(f"{args.model_path}/config.json", "r") as f:
+        model_config = json.load(f)
+        args.multimodal_model = model_config.get("multimodal", False)
+    
+    if args.multimodal_data:
+        logger.info("Evaluating on multimodal dataset")
 
     # Load model, tokenizer, and dataset
-    model, tokenizer = load_model_and_tokenizer(args.model_path)
+    model, tokenizer = load_model_and_tokenizer(args.model_path, args.multimodal_data)
     dataset = load_dataset(args.dataset_path)
 
     # Evaluate the model on the dataset
-    accuracy_per_pos, accuracy = evaluate_model_on_dataset(model, tokenizer, dataset, args.K, args.num_samples)
+    accuracy_per_pos, accuracy = evaluate_model_on_dataset(model, tokenizer, dataset, args.K, args.num_samples, args.multimodal_data)
 
     # Save the results
     save_results(accuracy_per_pos, accuracy, args.model_path, args.dataset_path, args.output_file)
     plot_results(accuracy_per_pos, args.K, args.output_file)
 
     logger.info(f"Final accuracy: {accuracy:.3f}")
-
 
 if __name__ == "__main__":
     main()
