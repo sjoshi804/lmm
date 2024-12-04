@@ -1,4 +1,4 @@
-WD="/home/sjoshi/lmm/lm_synthetic/lm_train"
+WD="/home/sjoshi/lmm/lmm_synthetic/lm_train"
 RUN_ID=v1_spatial_grid
 export WANDB_PROJECT="gptjpretrain"
 deepspeed \
