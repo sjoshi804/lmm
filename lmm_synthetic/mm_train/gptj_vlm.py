@@ -67,29 +67,38 @@ class GPTJ_VLM(PreTrainedModel):
         Returns:
             torch.Tensor: Generated token IDs.
         """
-        # Encode images to obtain embeddings
-        image_embeds = self.multimodal_projector(self.vision_encoder(images))
-        
-        # Encode text input into embeddings
-        text_embeds = self.gptj.transformer.wte(text_input_ids)
-        
-        # Concatenate image and text embeddings
-        inputs_embeds = torch.cat([image_embeds, text_embeds], dim=1)
-        
-        # Create attention mask
-        attention_mask = torch.cat(
+        if images is not None:
+            # Encode images to obtain embeddings
+            image_embeds = self.multimodal_projector(self.vision_encoder(images))
+            
+            # Encode text input into embeddings
+            text_embeds = self.gptj.transformer.wte(text_input_ids)
+            
+            # Concatenate image and text embeddings
+            inputs_embeds = torch.cat([image_embeds, text_embeds], dim=1)
+            
+            # Create attention mask
+            attention_mask = torch.cat(
             [torch.ones(image_embeds.size()[:2], dtype=torch.long, device=inputs_embeds.device), text_input_ids.ne(self.config.pad_token_id)],
             dim=1
-        )
-        
-        # Generate outputs using the GPTJ model's generate method
-        outputs = self.gptj.generate(
+            )
+            
+            # Generate outputs using the GPTJ model's generate method
+            outputs = self.gptj.generate(
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
             max_length=max_length,
             num_beams=num_beams,
             **generate_kwargs
-        )
+            )
+        else:
+            # Generate outputs using the GPTJ model's generate method for text only
+            outputs = self.gptj.generate(
+            input_ids=text_input_ids,
+            max_length=max_length,
+            num_beams=num_beams,
+            **generate_kwargs
+            )
         
         return outputs
     
@@ -104,7 +113,7 @@ class GPTJ_VLM_DataCollator:
         label_ids_list = []
 
         for example in examples:
-            images.append(self.image_transforms(example["image"]))  # Add batch dimension
+            images.append(self.image_transforms(example["image"])) 
             prompt = example["prompt"]
             conversations = example["conversations"]
 
