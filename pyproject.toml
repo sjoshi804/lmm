@@ -8,5 +8,5 @@ authors = ["Siddharth Joshi <sjoshi804@gmail.com>"]
 python = "^3.10"
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"

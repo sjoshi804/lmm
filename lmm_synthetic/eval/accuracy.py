@@ -1,27 +1,33 @@
 import argparse
-import re
 import json
-from datetime import datetime
-from loguru import logger
-from tqdm import tqdm
-import torch
-from transformers import GPTJForCausalLM, AutoTokenizer
-from datasets import load_from_disk
-import numpy as np
 import os
+import re
+from datetime import datetime
+
 import matplotlib.pyplot as plt
+import numpy as np
+import torch
+from datasets import load_from_disk
+from loguru import logger
+from PIL import Image
+from tqdm import tqdm
+from transformers import AutoTokenizer, GPTJForCausalLM
 
+from lmm_synthetic.mm_train.utils import load_vision_encoder
+from lmm_synthetic.mm_train.gptj_vlm import GPTJ_VLM
 
-def load_model_and_tokenizer(model_path):
+def load_model_and_tokenizer(model_path, multimodal=False):
     """
     Load the model and tokenizer from the specified path.
     """
     logger.info(f"Loading model and tokenizer from {model_path}")
     tokenizer = AutoTokenizer.from_pretrained(model_path)
-    model = GPTJForCausalLM.from_pretrained(model_path)
+    if multimodal:
+        model = GPTJ_VLM.from_
+    else:
+        model = GPTJForCausalLM.from_pretrained(model_path)
     model.eval()
     return model, tokenizer
-
 
 def load_dataset(dataset_path):
     """
@@ -29,7 +35,6 @@ def load_dataset(dataset_path):
     """
     logger.info(f"Loading dataset from {dataset_path}")
     return load_from_disk(dataset_path)
-
 
 def generate_responses_lm(model, tokenizer, prompts, max_new_tokens=50, max_length=512):
     """
@@ -131,6 +136,8 @@ def evaluate_model_on_dataset(model, tokenizer, dataset, K, num_samples=250, mul
     logger.info(f"Starting evaluation on {num_samples} grids")
     pbar = tqdm(enumerate(dataset['validation']), total=num_samples)
     
+    _, image_transforms, _ = load_vision_encoder("clip")
+    
     for i, example in pbar:
         num_grids += 1
         text_prompt = example["text"].split(']')[0] + '].'
@@ -145,10 +152,16 @@ def evaluate_model_on_dataset(model, tokenizer, dataset, K, num_samples=250, mul
         ]
         
         if i == 0:
-            logger.debug(text_prompt)
+            logger.debug(prompt)
             logger.debug(position_prompts[0])
             
-        responses = generate_responses_lm(model, tokenizer, position_prompts, max_new_tokens=5)
+        if multimodal:
+            image_tensor = image_transforms(Image.open(example["image"])).unsqueeze(0)
+            image_tensors = [image_tensor for _ in range(K * K)]
+            image_tensors = torch.cat(image_tensors, dim=0)
+            responses = generate_responses_vlm(model, tokenizer, image_tensors, position_prompts, max_new_tokens=5)
+        else:
+            responses = generate_responses_lm(model, tokenizer, position_prompts, max_new_tokens=5)
 
         # Evaluate predictions
         for idx, text in enumerate(responses):

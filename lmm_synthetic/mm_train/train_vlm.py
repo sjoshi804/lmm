@@ -44,6 +44,11 @@ def main():
     training_args.remove_unused_columns = False
     
     # Load the GPT-J model
+    model = GPTJ_VLM.from_pretrained(
+        model_args.gptj_model_path, 
+        model_args.vision_encoder, 
+        model_args.multimodal_projector
+    )
     gptj = GPTJForCausalLM.from_pretrained(model_args.gptj_model_path)
     tokenizer = AutoTokenizer.from_pretrained(model_args.gptj_model_path)
     lang_embedding_size = gptj.config.hidden_size
@@ -63,8 +68,7 @@ def main():
         for param in multimodal_projector.parameters():
             param.requires_grad = False
 
-    # Initialize the VLM model
-    model = GPTJ_VLM(gptj, vision_encoder, multimodal_projector, tokenizer)
+   
 
     # Prepare the dataset using the function in utils.py
     dataset = LazySupervisedDataset(data_args.data_path, data_args.split)
