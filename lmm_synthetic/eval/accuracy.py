@@ -112,7 +112,8 @@ def generate_responses_vlm(model, tokenizer, image_tensors, prompts, max_new_tok
     text_input_ids = inputs['input_ids'].to(device)
 
     # Ensure image tensors are on the GPU
-    image_tensors = image_tensors.to(device)
+    if image_tensors is not None:
+        image_tensors = image_tensors.to(device)
 
     # Generate responses for the entire batch
     with torch.no_grad():
@@ -152,7 +153,7 @@ def parse_grid(grid_str, K):
     return [[cell.strip() for cell in row.split('|') if cell.strip()] for row in rows]
 
 
-def evaluate_model_on_dataset(model, tokenizer, dataset, K, num_samples=250, multimodal=False):
+def evaluate_model_on_dataset(model, tokenizer, dataset, split, K, num_samples=250, multimodal_data=False, multimodal_model=False, debug=False):
     """
     Evaluate the model on the given dataset and compute accuracy.
     """
@@ -161,7 +162,7 @@ def evaluate_model_on_dataset(model, tokenizer, dataset, K, num_samples=250, mul
     correct_per_pos = {}
 
     logger.info(f"Starting evaluation on {num_samples} grids")
-    pbar = tqdm(enumerate(dataset['validation']), total=num_samples)
+    pbar = tqdm(enumerate(dataset[split]), total=num_samples)
     
     _, image_transforms, _ = load_vision_encoder("clip")
     
@@ -173,7 +174,7 @@ def evaluate_model_on_dataset(model, tokenizer, dataset, K, num_samples=250, mul
         text_prompt = example["text"].split(']')[0] + '].'
         grid = parse_grid(text_prompt, K)
 
-        prompt = example["prompt"] if multimodal else text_prompt 
+        prompt = example["prompt"] if multimodal_data and multimodal_model else text_prompt 
         
         # Generate prompts for all positions in the grid
         position_prompts = [
@@ -184,11 +185,14 @@ def evaluate_model_on_dataset(model, tokenizer, dataset, K, num_samples=250, mul
         if i == 0:
             logger.debug(f"Sample Question (0,0): {position_prompts[0]}")
             
-        if multimodal:
-            image_tensor = image_transforms(Image.open(example["image"])).unsqueeze(0)
-            image_tensors = [image_tensor for _ in range(K * K)]
-            image_tensors = torch.cat(image_tensors, dim=0)
-            responses = generate_responses_vlm(model, tokenizer, image_tensors, position_prompts, max_new_tokens=5)
+        if multimodal_model:
+            if multimodal_data:
+                image_tensor = image_transforms(Image.open(example["image"])).unsqueeze(0)
+                image_tensors = [image_tensor for _ in range(K * K)]
+                image_tensors = torch.cat(image_tensors, dim=0)
+                responses = generate_responses_vlm(model, tokenizer, image_tensors, position_prompts, max_new_tokens=5)
+            else:
+                responses = generate_responses_vlm(model, tokenizer, None, position_prompts, max_new_tokens=5)
         else:
             responses = generate_responses_lm(model, tokenizer, position_prompts, max_new_tokens=5)
 
@@ -197,6 +201,9 @@ def evaluate_model_on_dataset(model, tokenizer, dataset, K, num_samples=250, mul
             i, j = divmod(idx, K)
             total_per_pos[(i, j)] = total_per_pos.get((i, j), 0) + 1
             parsed_answer = parse_answer(text)
+            if debug:
+                logger.debug("Parsed Answer: " + parsed_answer)
+                logger.debug("Actual Answer: " + grid[i][j])
             if parsed_answer == grid[i][j]:
                 correct_per_pos[(i, j)] = correct_per_pos.get((i, j), 0) + 1
 
@@ -254,15 +261,17 @@ def main():
     parser = argparse.ArgumentParser(description="Evaluate model accuracy on a dataset")
     parser.add_argument("--model_path", type=str, required=True, help="Path to the model")
     parser.add_argument("--dataset_path", type=str, required=True, help="Path to the dataset")
+    parser.add_argument("--split", type=str, default="validation", help="Dataset split to evaluate on")
     parser.add_argument("--K", type=int, default=3, help="Size of the grid (KxK)")
     parser.add_argument("--num_samples", type=int, default=250, help="Number of grids to evaluate")
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging")
 
     args = parser.parse_args()
     # Create results directory if it doesn't exist
     os.makedirs("results", exist_ok=True)
     args.output_file = "results/" + datetime.now().strftime('%Y%m%d_%H%M%S') + ".json"
     args.multimodal_data = "multimodal" in args.dataset_path
-    with open(f"{args.model_path}/config.json", "r") as f:
+    with open(os.path.join(args.model_path, "config.json"), "r") as f:
         model_config = json.load(f)
         args.multimodal_model = model_config.get("multimodal", False)
     
@@ -270,11 +279,14 @@ def main():
         logger.info("Evaluating on multimodal dataset")
 
     # Load model, tokenizer, and dataset
-    model, tokenizer = load_model_and_tokenizer(args.model_path, args.multimodal_data)
+    model, tokenizer = load_model_and_tokenizer(args.model_path, args.multimodal_model)
     dataset = load_dataset(args.dataset_path)
 
+    if not args.multimodal_model and args.multimodal_data:
+        logger.warning("Multimodal data provided but language only model provided. Evaluating with language only data.")
+        
     # Evaluate the model on the dataset
-    accuracy_per_pos, accuracy = evaluate_model_on_dataset(model, tokenizer, dataset, args.K, args.num_samples, args.multimodal_data)
+    accuracy_per_pos, accuracy = evaluate_model_on_dataset(model, tokenizer, dataset, args.split, args.K, args.num_samples, args.multimodal_data, args.multimodal_model, args.debug)
 
     # Save the results
     save_results(accuracy_per_pos, accuracy, args.model_path, args.dataset_path, args.output_file)
