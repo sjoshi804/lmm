@@ -1,4 +1,4 @@
-WD="/home/sjoshi/lmm/lm-train"
+WD="/home/sjoshi/lmm/lm_synthetic/lm_train"
 
 export WANDB_PROJECT="gptjpretrain"
 RUN_ID=tinystories_val

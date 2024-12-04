@@ -1,4 +1,4 @@
-WD="/home/sjoshi/lmm/mm-train"
+WD="/home/sjoshi/lmm/lm_synthetic/mm_train"
 RUN_ID=v3_spatial_grid_multimodal
 export WANDB_PROJECT="vlm_training"
 
@@ -7,9 +7,10 @@ deepspeed \
     --master_port 29501 \
     $WD/train_vlm.py \
     --deepspeed $WD/ds_configs/zero3.json \
-    --data_path /home/sjoshi/lmm/data/generated/v3_spatial_grid_multimodal \
+    --data_path /home/sjoshi/lmm/lmm_synthetic/data/generated/v3_spatial_grid_multimodal \
     --split train \
-    --gptj_model_path /home/sjoshi/lmm/lm-train/checkpoints/v3_spatial_grid_gptj/checkpoint-1953 \
+    --max_data_size 128 \
+    --gptj_model_path /home/sjoshi/lmm/lmm_synthetic/lm_train/checkpoints/v3_spatial_grid_gptj/checkpoint-1953 \
     --vision_encoder clip \
     --multimodal_projector linear \
     --freeze_lm False \

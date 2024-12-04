@@ -1,4 +1,4 @@
-WD="/home/sjoshi/lmm/lm-train"
+WD="/home/sjoshi/lmm/lm_synthetic/lm_train"
 RUN_ID=wikitext_val
 export WANDB_PROJECT="gptjpretrain"
 deepspeed \
