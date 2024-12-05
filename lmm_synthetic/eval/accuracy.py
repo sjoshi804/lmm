@@ -210,7 +210,7 @@ def evaluate_model_on_dataset(model, tokenizer, dataset, split, K, num_samples=2
         accuracy = sum(correct_per_pos.values()) / sum(total_per_pos.values())
         pbar.set_description(f'Accuracy: {accuracy:.3f}')
 
-    accuracy_per_pos = {pos:  correct_per_pos.get((i, j), 0) / total_per_pos[pos] for pos in total_per_pos}
+    accuracy_per_pos = {pos:  correct_per_pos.get(pos, 0) / total_per_pos[pos] for pos in total_per_pos}
     return accuracy_per_pos, accuracy
 
 
