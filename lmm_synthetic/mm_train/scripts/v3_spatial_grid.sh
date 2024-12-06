@@ -15,6 +15,7 @@ deepspeed \
     --freeze_lm False \
     --output_dir $WD/checkpoints/$RUN_ID \
     --per_device_train_batch_size 32 \
+    --lr_scale_lm 0.02 \
     --num_train_epochs 1 \
     --learning_rate 1e-3 \
     --logging_dir $WD/logs \
