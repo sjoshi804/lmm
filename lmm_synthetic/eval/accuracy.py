@@ -152,6 +152,14 @@ def parse_grid(grid_str, K):
     rows = grid_str.strip().split('\n')
     return [[cell.strip() for cell in row.split('|') if cell.strip()] for row in rows]
 
+def parse_vocab_subset(prompt):
+    """
+    Parse the vocabulary subset from the prompt.
+    """
+    match = re.search(r"Each cell contains an object from \[(.*?)\]", prompt)
+    if match:
+        return [item.strip().strip("'") for item in match.group(1).split(',')]
+    return []
 
 def evaluate_model_on_dataset(model, tokenizer, dataset, split, K, num_samples=250, multimodal_data=False, multimodal_model=False, debug=False):
     """
@@ -160,7 +168,10 @@ def evaluate_model_on_dataset(model, tokenizer, dataset, split, K, num_samples=2
     num_grids = 0
     total_per_pos = {}
     correct_per_pos = {}
-
+    in_vocab_subset_per_pos = {}
+    accuracy = 0
+    in_vocab_subset_rate = 0
+    
     logger.info(f"Starting evaluation on {num_samples} grids")
     pbar = tqdm(enumerate(dataset[split]), total=num_samples)
     
@@ -175,6 +186,7 @@ def evaluate_model_on_dataset(model, tokenizer, dataset, split, K, num_samples=2
         grid = parse_grid(text_prompt, K)
 
         prompt = example["prompt"] if multimodal_data and multimodal_model else text_prompt 
+        vocab_subset = parse_vocab_subset(prompt)
         
         # Generate prompts for all positions in the grid
         position_prompts = [
@@ -206,24 +218,34 @@ def evaluate_model_on_dataset(model, tokenizer, dataset, split, K, num_samples=2
                 logger.debug("Actual Answer: " + grid[i][j])
             if parsed_answer == grid[i][j]:
                 correct_per_pos[(i, j)] = correct_per_pos.get((i, j), 0) + 1
-
+                in_vocab_subset_per_pos[(i, j)] = in_vocab_subset_per_pos.get((i, j), 0) + 1
+            elif parsed_answer in vocab_subset:
+                in_vocab_subset_per_pos[(i, j)] = in_vocab_subset_per_pos.get((i, j), 0) + 1
+                
         accuracy = sum(correct_per_pos.values()) / sum(total_per_pos.values())
-        pbar.set_description(f'Accuracy: {accuracy:.3f}')
+        in_vocab_subset_rate = sum(in_vocab_subset_per_pos.values()) / sum(total_per_pos.values())
+        pbar.set_description(f'Accuracy: {accuracy:.3f}, In Vocab Subset: {in_vocab_subset_rate:.3f}')
 
     accuracy_per_pos = {pos:  correct_per_pos.get(pos, 0) / total_per_pos[pos] for pos in total_per_pos}
-    return accuracy_per_pos, accuracy
-
-
-def save_results(accuracy_per_pos, accuracy, model_path, dataset_path, file_path):
-    """
-    Save results to a JSON file.
-    """
+    in_vocab_subset_rate_per_pos = {pos: in_vocab_subset_per_pos.get(pos, 0) / total_per_pos[pos] for pos in total_per_pos}
     results = {
         "accuracy_per_pos": {str(pos): acc for pos, acc in accuracy_per_pos.items()},
         "accuracy": accuracy,
+        "in_vocab_subset_rate_per_pos": {str(pos): rate for pos, rate in in_vocab_subset_rate_per_pos.items()},
+        "in_vocab_subset_rate": in_vocab_subset_rate
+    }
+    
+    return results
+
+
+def save_results(results, model_path, dataset_path, file_path):
+    """
+    Save results to a JSON file.
+    """
+    results.update({
         "model_path": model_path,
         "dataset_path": dataset_path
-    }
+    })
 
     with open(file_path, 'w') as f:
         json.dump(results, f, indent=3)
@@ -234,7 +256,8 @@ def plot_results(accuracy_per_pos, K, file_path):
     Plot a heatmap of the accuracy per position and save it to a file.
     """
     heatmap = np.zeros((K, K))
-    for (i, j), accuracy in accuracy_per_pos.items():
+    for pos, accuracy in accuracy_per_pos.items():
+        i, j = map(int, pos.strip('()').split(','))
         heatmap[i, j] = accuracy
 
     plt.figure(figsize=(8, 6))
@@ -286,13 +309,13 @@ def main():
         logger.warning("Multimodal data provided but language only model provided. Evaluating with language only data.")
         
     # Evaluate the model on the dataset
-    accuracy_per_pos, accuracy = evaluate_model_on_dataset(model, tokenizer, dataset, args.split, args.K, args.num_samples, args.multimodal_data, args.multimodal_model, args.debug)
+    results = evaluate_model_on_dataset(model, tokenizer, dataset, args.split, args.K, args.num_samples, args.multimodal_data, args.multimodal_model, args.debug)
 
     # Save the results
-    save_results(accuracy_per_pos, accuracy, args.model_path, args.dataset_path, args.output_file)
-    plot_results(accuracy_per_pos, args.K, args.output_file)
+    save_results(results, args.model_path, args.dataset_path, args.output_file)
+    plot_results(results["accuracy_per_pos"], args.K, args.output_file)
 
-    logger.info(f"Final accuracy: {accuracy:.3f}")
+    logger.info("Final accuracy: {:.3f}".format(results["accuracy"]))
 
 if __name__ == "__main__":
     main()
