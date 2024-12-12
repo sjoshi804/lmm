@@ -21,7 +21,7 @@
         "ship",
         "truck"
     ],
-    "multimodal_train_size": 1000000, 
+    "multimodal_train_size": 10000000, 
     "num_unique_images_per_class": 1, 
     "image_size": [256, 256],
     "image_pool":

@@ -121,7 +121,7 @@ def convert_to_multimodal(args):
             resized_images_dict[f"{word}_{i}"] = img
 
     # Path for multimodal dataset
-    multimodal_dataset_path = os.path.join(args.output_dir, os.path.basename(args.config_path).split('.')[0] + '_multimodal')
+    multimodal_dataset_path = os.path.join(args.output_dir, os.path.basename(args.config_path).split('.')[0] + "_" + args.multimodal_suffix)
     os.makedirs(multimodal_dataset_path)
     
     # Create an images subfolder
@@ -185,7 +185,7 @@ if __name__ == "__main__":
     parser.add_argument('--config_path', type=str, required=True, help='Path to the dataset config file.')
     parser.add_argument('--dataset_path', type=str, required=True, help='Path to the Huggingface dataset.')
     parser.add_argument('--output_dir', type=str, required=False, default="/home/sjoshi/lmm/data/generated/", help='Path to save the generated dataset.')
-
+    parser.add_argument('--multimodal_suffix', type=str, default="multimodal", help="suffix for multimodal version of dataset")
     args = parser.parse_args()
 
     convert_to_multimodal(args)

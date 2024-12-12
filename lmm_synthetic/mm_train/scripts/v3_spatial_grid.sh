@@ -16,10 +16,10 @@ deepspeed \
     --output_dir $WD/checkpoints/$RUN_ID \
     --per_device_train_batch_size 32 \
     --lr_scale_lm 0.02 \
-    --num_train_epochs 1 \
+    --num_train_epochs 5 \
     --learning_rate 1e-3 \
     --logging_dir $WD/logs \
     --logging_steps 5 \
     --save_strategy epoch \
     --warmup_steps 100 \
-    --save_total_limit 2
+    --save_total_limit 1 
