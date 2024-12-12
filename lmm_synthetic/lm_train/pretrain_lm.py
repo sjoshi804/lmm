@@ -18,6 +18,7 @@ class ModelArguments:
     n_head: int = field(default=12, metadata={"help": "Number of attention heads."})
     rotary_dim: int = field(default=64, metadata={"help": "Rotary dimension for rotary positional embeddings."})
     intermediate_size: int = field(default=3072, metadata={"help": "Intermediate size of the feed-forward layers."})
+    train_tokenizer: bool = field(default=False, metadata={"help": "Whether to train the tokenizer."})
 
 @dataclass
 class DataArguments:
@@ -51,9 +52,12 @@ def main():
         dataset = load_from_disk(data_args.dataset_name)[data_args.split]
     else:        
         dataset = load_dataset(data_args.dataset_name, data_args.dataset_config_name, split=data_args.split)
-    train_tokenizer(dataset, data_args.tokenizer_dir, model_args.vocab_size)
-    tokenizer = GPT2TokenizerFast(vocab_file=tokenizer_files["vocab_file"], merges_file=tokenizer_files["merges.txt"])
-
+    
+    if model_args.train_tokenizer:
+        train_tokenizer(dataset, data_args.tokenizer_dir, model_args.vocab_size)
+        tokenizer = GPT2TokenizerFast(vocab_file=tokenizer_files["vocab_file"], merges_file=tokenizer_files["merges.txt"])
+    else:
+        tokenizer = GPT2TokenizerFast.from_pretrained("gpt2")
     tokenizer.pad_token = tokenizer.eos_token
     data_args.cache_dir = os.path.join(data_args.cache_dir, replace_non_alphanumeric(f"{data_args.dataset_name}_config={data_args.dataset_config_name}_split={data_args.split}"))
     
