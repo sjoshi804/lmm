@@ -7,7 +7,7 @@ deepspeed \
     $WD/pretrain_lm.py \
     --deepspeed $WD/ds_configs/zero3.json \
     --vocab_size 50257 \
-    --n_positions 128 \
+    --n_positions 256 \
     --n_embd 512 \
     --n_layer 8 \
     --n_head 8 \
@@ -15,7 +15,7 @@ deepspeed \
     --dataset_name /home/sjoshi/lmm/lmm_synthetic/data/generated/v3_spatial_grid \
     --load_from_disk True \
     --split train \
-    --max_length 128 \
+    --max_length 256 \
     --output_dir $WD/checkpoints/$RUN_ID \
     --per_device_train_batch_size 64 \
     --num_train_epochs 10 \
