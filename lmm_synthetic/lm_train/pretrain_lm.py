@@ -72,8 +72,6 @@ def main():
         return encoding
 
     tokenized_dataset = dataset.map(tokenize_function, batched=True, remove_columns=["text"])
-    tokenized_dataset.save_to_disk(data_args.cache_dir)
-    print(f"Tokenized dataset saved to {data_args.cache_dir}")
 
     config = GPTJConfig(
         vocab_size=model_args.vocab_size,
@@ -87,7 +85,6 @@ def main():
         initializer_range=0.02,
     )
     model = GPTJForCausalLM(config)
-
     trainer = Trainer(
         model=model,
         args=training_args,
