@@ -39,9 +39,10 @@ class DataArguments:
     dataset_name: str = field(metadata={"help": "The name of the dataset to use."})
     dataset_config_name: Optional[str] = field(default=None, metadata={"help": "The config name of the dataset to use."})
     load_from_disk: bool = field(default=False, metadata={"help": "Whether to load the dataset from disk."})
-    max_length: int = field(default=512, metadata={"help": "Maximum sequence length for the dataset."})
     split: Optional[str] = field(default="train", metadata={"help": "The dataset split to use."})
-
+    max_length: int = field(default=256, metadata={"help": "Maximum sequence length."})
+    debug_data: bool = field(default=False, metadata={"help": "Whether to run in debug mode."})
+        
 def train_tokenizer(dataset, tokenizer_dir: str, vocab_size: int):
     """
     Train a ByteLevelBPETokenizer on the provided dataset and save it to the specified directory.

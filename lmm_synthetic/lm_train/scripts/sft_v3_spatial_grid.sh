@@ -10,7 +10,6 @@ deepspeed \
     --dataset_name /home/sjoshi/lmm/lmm_synthetic/data/generated/v3_spatial_grid_multimodal \
     --load_from_disk True \
     --split train \
-    --max_length 256 \
     --output_dir $WD/checkpoints/$RUN_ID \
     --per_device_train_batch_size 64 \
     --num_train_epochs 5 \
@@ -22,4 +21,4 @@ deepspeed \
     --logging_dir $WD/logs \
     --logging_steps 10 \
     --save_strategy epoch \
-    --save_total_limit 1
+    --save_total_limit 1 

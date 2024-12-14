@@ -4,52 +4,81 @@ from lmm_synthetic.lm_train.utils import ModelArguments, DataArguments, train_to
 import os
 import torch
 from torch import nn
+import difflib
 
 class SFTDataCollator():
-    def __init__(self, tokenizer, max_length=256):
+    def __init__(self, tokenizer, max_length=256, debug=False):
         self.tokenizer = tokenizer
         self.max_length = max_length
-    
+        local_rank = int(os.getenv("LOCAL_RANK", "-1"))  # Get the local rank from environment variables
+        self.debug = debug and local_rank == 0
+        
     def __call__(self, examples):
         input_ids_list = []
         label_ids_list = []
 
-        for example in examples:
-            prompt = example["text"].split("\nThe grid above")[0]
+        for example_num, example in enumerate(examples):
+            debug = example_num == 0 and self.debug
+            full_input = ""
+            
+            # Extract prompt and conversations
+            prompt = example["text"].split(".\n")[0] + ".\n"
             conversations = example["conversations"]
-
+            
+            if debug:
+                full_input += prompt 
+            
             # Tokenize prompt
             prompt_input_ids = self.tokenizer(prompt, return_tensors='pt', padding=True)['input_ids'].squeeze(0)
-            text_input_ids = [prompt_input_ids]
+            input_ids = [prompt_input_ids]
             label_ids = [prompt_input_ids.clone()]
 
             # Tokenize conversations
-            for instr, resp in conversations:
+            for conv_num, (instr, resp) in enumerate(conversations):
+                instr = instr + " "
+                if conv_num < len(conversations) - 1:
+                    resp = resp + "\n" 
+                
+                if debug:
+                    full_input += instr + resp 
+                    
                 instr_input_ids = self.tokenizer(instr, return_tensors='pt', padding=True)['input_ids'].squeeze(0)
-                resp_input_ids = self.tokenizer(resp + "\n", return_tensors='pt', padding=True)['input_ids'].squeeze(0)
+                resp_input_ids = self.tokenizer(resp, return_tensors='pt', padding=True)['input_ids'].squeeze(0)
 
-                text_input_ids.extend([instr_input_ids, resp_input_ids])
+                input_ids.extend([instr_input_ids, resp_input_ids])
                 label_ids.extend([
                     torch.full(instr_input_ids.shape, -100, dtype=torch.long),  # Mask instruction in labels
                     resp_input_ids  # Keep response for label
                 ])
+                
+            if debug:
+                print("Reconstructed Text", f"<start>{full_input}<end>")
+                print("Original Text", f"<start>{example['text']}<end>") 
+                diff = difflib.unified_diff(
+                    example['text'].splitlines(keepends=True),
+                    full_input.splitlines(keepends=True),
+                    fromfile='original',
+                    tofile='reconstructed'
+                )
+                print(''.join(diff))
+                exit(0)
 
             # Concatenate all input IDs and labels for this example
-            text_input_ids = torch.cat(text_input_ids, dim=0)  # (seq_len)
+            input_ids = torch.cat(input_ids, dim=0)  # (seq_len)
             label_ids = torch.cat(label_ids, dim=0)  # (seq_len)
 
             # Append tokenized data
-            input_ids_list.append(text_input_ids)
+            input_ids_list.append(input_ids)
             label_ids_list.append(label_ids)
 
         # Pad sequences for batch processing to max_length
         input_ids_padded = torch.full((len(input_ids_list), self.max_length), self.tokenizer.pad_token_id, dtype=torch.long)
         label_ids_padded = torch.full((len(label_ids_list), self.max_length), -100, dtype=torch.long)
 
-        for i, (input_ids, label_ids) in enumerate(zip(input_ids_list, label_ids_list)):
+        for example_num, (input_ids, label_ids) in enumerate(zip(input_ids_list, label_ids_list)):
             seq_len = min(len(input_ids), self.max_length)
-            input_ids_padded[i, :seq_len] = input_ids[:seq_len]
-            label_ids_padded[i, :seq_len] = label_ids[:seq_len]
+            input_ids_padded[example_num, :seq_len] = input_ids[:seq_len]
+            label_ids_padded[example_num, :seq_len] = label_ids[:seq_len]
         
         # Create batch dictionary
         batch = {
@@ -103,7 +132,11 @@ def main():
     tokenizer.pad_token = tokenizer.eos_token
     
     # Define a custom data collator (pass the tokenizer to it)
-    custom_data_collator = SFTDataCollator(tokenizer=tokenizer)
+    custom_data_collator = SFTDataCollator(
+        tokenizer=tokenizer, 
+        max_length=data_args.max_length,
+        debug=data_args.debug_data
+    )
 
     # Initialize Trainer for supervised fine-tuning
     trainer = Trainer(
