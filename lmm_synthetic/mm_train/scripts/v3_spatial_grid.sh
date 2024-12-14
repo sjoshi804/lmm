@@ -1,5 +1,5 @@
 WD="/home/sjoshi/lmm/lmm_synthetic/mm_train"
-RUN_ID=v3_spatial_grid_multimodal
+RUN_ID=v3_spatial_grid_multimodal_lr_scale_1e_3
 export WANDB_PROJECT="vlm_training"
 
 deepspeed \
@@ -14,12 +14,12 @@ deepspeed \
     --multimodal_projector linear \
     --freeze_lm False \
     --output_dir $WD/checkpoints/$RUN_ID \
-    --per_device_train_batch_size 32 \
-    --lr_scale_lm 0.02 \
-    --num_train_epochs 1 \
+    --per_device_train_batch_size 128 \
+    --lr_scale_lm 0.01 \
+    --num_train_epochs 5 \
     --learning_rate 1e-3 \
     --logging_dir $WD/logs \
-    --logging_steps 5 \
+    --logging_steps 1 \
     --save_strategy epoch \
-    --warmup_steps 100 \
-    --save_total_limit 2
+    --warmup_steps 25 \
+    --save_total_limit 5
