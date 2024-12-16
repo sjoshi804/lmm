@@ -168,6 +168,6 @@ def create_dataset_from_json(args) -> datasets.DatasetDict:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Generate a synthetic text dataset based on a JSON configuration file.")
     parser.add_argument('--config', type=str, required=True, help='Path to the JSON configuration file.')
-    parser.add_argument('--output_dir', type=str, required=False, default="/home/sjoshi/lmm/data/generated/", help='Path to save the generated dataset.')
+    parser.add_argument('--output_dir', type=str, required=False, default="/home/sjoshi/lmm/lmm_synthetic/data/generated/", help='Path to save the generated dataset.')
     args = parser.parse_args()
     dataset = create_dataset_from_json(args)
