@@ -103,7 +103,7 @@ def main():
             param.requires_grad = False
 
     # Prepare dataset
-    dataset = LazySupervisedDataset(data_args.data_path, data_args.split, data_args.max_data_size)
+    dataset = LazySupervisedDataset(data_args.data_path, data_args.split, data_args.max_data_size, debug=data_args.debug_data)
     data_collator = GPTJ_VLM_DataCollator(tokenizer, model.image_transforms, debug=data_args.debug_data)
 
     # Initialize custom trainer (no need to pass model_args here since we only need training_args)

@@ -141,7 +141,7 @@ class GPTJ_VLM_DataCollator:
             
             # Extract image, prompt, and conversations
             images.append(self.image_transforms(example["image"])) 
-            prompt = example["prompt"]
+            prompt = example["prompt"] + "\n"
             conversations = example["conversations"]
             
             if debug:

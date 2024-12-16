@@ -15,7 +15,7 @@ class LazySupervisedDataset(Dataset):
         debug: bool = False
     ) -> None:
         super(LazySupervisedDataset, self).__init__()
-        
+        self.debug = debug
         hf_dataset = load_from_disk(data_path)[split]
         self.list_data_dict = []
         for sample in hf_dataset:
@@ -27,8 +27,8 @@ class LazySupervisedDataset(Dataset):
                 "prompt": prompt,
                 "conversations": conversations
             })
-            if debug:
-                sample["text"] = sample.get("text", "")
+            if self.debug:
+                self.list_data_dict[-1]["text"] = sample.get("text", "")
         if max_data_size > 0:
             self.list_data_dict = self.list_data_dict[:max_data_size]
         print("Dataset size:", len(self.list_data_dict))
@@ -50,3 +50,4 @@ class LazySupervisedDataset(Dataset):
         )
         if self.debug:
             item_dict["text"] = sample["text"]
+        return item_dict
