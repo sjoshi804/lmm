@@ -28,6 +28,8 @@ def load_vision_encoder(encoder_name: str):
                 return vision_outputs.last_hidden_state  # [batch_size, num_patches + 1, hidden_dim]
 
         encoder = VisionEncoderWrapper(clip_model)
+    elif encoder_name == 'manual_vision_encoder':
+        raise NotImplementedError("Manual vision encoder not implemented yet.")
     else:
         raise ValueError(f"Unsupported encoder: {encoder_name}")
 

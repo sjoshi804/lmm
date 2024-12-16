@@ -11,7 +11,8 @@ class LazySupervisedDataset(Dataset):
         self, 
         data_path: str, 
         split: str,
-        max_data_size: int = -1
+        max_data_size: int = -1,
+        debug: bool = False
     ) -> None:
         super(LazySupervisedDataset, self).__init__()
         
@@ -26,6 +27,8 @@ class LazySupervisedDataset(Dataset):
                 "prompt": prompt,
                 "conversations": conversations
             })
+            if debug:
+                sample["text"] = sample.get("text", "")
         if max_data_size > 0:
             self.list_data_dict = self.list_data_dict[:max_data_size]
         print("Dataset size:", len(self.list_data_dict))
@@ -40,8 +43,10 @@ class LazySupervisedDataset(Dataset):
 
     def __getitem__(self, i) -> Dict[str, List]:
         sample = self.list_data_dict[i]
-        return dict(
+        item_dict = dict(
             image=Image.open(sample["image"]).convert("RGB"),
             prompt=sample["prompt"],
             conversations=sample["conversations"]
         )
+        if self.debug:
+            item_dict["text"] = sample["text"]
