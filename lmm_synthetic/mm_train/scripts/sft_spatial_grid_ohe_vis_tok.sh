@@ -1,9 +1,9 @@
 WD="/home/sjoshi/lmm/lmm_synthetic/mm_train"
-RUN_ID=sft_v3_spatial_grid_multimodal_ohe_vis_tok
+RUN_ID=sft_v3_spatial_grid_multimodal_ohe_vis_tok_2e-3
 export WANDB_PROJECT="vlm_training"
 
 deepspeed \
-    --include localhost:0 \
+    --include localhost:0,1,2,3,4,5,6,7 \
     --master_port 29502 \
     $WD/train_vlm.py \
     --deepspeed $WD/ds_configs/zero3.json \
@@ -16,7 +16,7 @@ deepspeed \
     --freeze_lm False \
     --output_dir $WD/checkpoints/$RUN_ID \
     --per_device_train_batch_size 32 \
-    --lr_scale_lm 2e-4 \
+    --lr_scale_lm 2e-3 \
     --num_train_epochs 5 \
     --learning_rate 5e-3 \
     --logging_dir $WD/logs \
