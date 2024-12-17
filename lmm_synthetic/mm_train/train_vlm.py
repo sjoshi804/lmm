@@ -41,7 +41,8 @@ class CustomTrainer(Trainer):
         # Construct parameter groups with scaled learning rates based on training arguments
         optimizer_grouped_parameters = [
             {"params": [], "lr": self.args.learning_rate * self.args.lr_scale_lm},
-            {"params": [], "lr": self.args.learning_rate * self.args.lr_scale_vision_encoder}
+            {"params": [], "lr": self.args.learning_rate * self.args.lr_scale_vision_encoder},
+            {"params": [], "lr": self.args.learning_rate}
         ]
 
         for name, param in self.model.named_parameters():
@@ -55,13 +56,12 @@ class CustomTrainer(Trainer):
             elif "vision_encoder" in name and not self.args.freeze_vision_encoder:
                 optimizer_grouped_parameters[1]["params"].append(param)
             else:
-                # For other parameters (like projector if not frozen), use the default LR
-                optimizer_grouped_parameters.append({"params": [param], "lr": self.args.learning_rate})
+                optimizer_grouped_parameters[2]["params"].append(param)
 
         self.optimizer = AdamW(
             optimizer_grouped_parameters,
-            lr=self.args.learning_rate,
-            eps=self.args.adam_epsilon
+            eps=self.args.adam_epsilon,
+            weight_decay=self.args.weight_decay
         )
 
         self.lr_scheduler = get_scheduler(
@@ -70,6 +70,31 @@ class CustomTrainer(Trainer):
             num_warmup_steps=self.args.warmup_steps,
             num_training_steps=num_training_steps
         )
+    
+    def log(self, logs: dict):
+        """
+        Override the default logging behavior to include learning rates for all parameter groups.
+        """
+        # Add learning rates for each parameter group
+        if hasattr(self, 'lr_scheduler') and self.lr_scheduler is not None:
+            last_lrs = self.lr_scheduler.get_last_lr()
+            if len(last_lrs) == 1:
+                logs["lr_mm_proj"] = last_lrs[0]
+            elif len(last_lrs) == 2:
+                if self.args.freeze_vision_encoder:
+                    logs["lr_lm"] = last_lrs[0]
+                    logs["lr_mm_proj"] = last_lrs[1]
+                elif self.args.freeze_lm:
+                    logs["lr_vision_encoder"] = last_lrs[0]
+                    logs["lr_mm_proj"] = last_lrs[1]
+            elif len(last_lrs) == 3:
+                logs["lr_lm"] = last_lrs[0]
+                logs["lr_vision_encoder"] = last_lrs[1]
+                logs["lr_mm_proj"] = last_lrs[2]
+            del logs["learning_rate"]
+        
+        # Call the parent method to continue normal logging behavior
+        super().log(logs)
 
 def main():
     # Parse arguments
