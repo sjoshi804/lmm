@@ -107,7 +107,7 @@ class CustomTrainer(Trainer):
                 logs["lr_lm"] = last_lrs[0]
                 logs["lr_vision_encoder"] = last_lrs[1]
                 logs["lr_mm_proj"] = last_lrs[2]
-             logs.pop("learning_rate", None)
+            logs.pop("learning_rate", None)
         
         # Call the parent method to continue normal logging behavior
         super().log(logs)
