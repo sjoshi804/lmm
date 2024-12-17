@@ -34,6 +34,39 @@ This folder includes:
 - Tools for data augmentation and preprocessing.
 - Sample datasets for quick testing and validation.
 
+Text-Only Version
+```
+| bird | frog | frog |
+| cat | bird | bird |
+| horse | bird | bird |
+The grid above is size 3 by 3. Each cell contains an object from ['horse', 'bird', 'cat', 'frog'].
+What object is in row 2, column 2? A: bird
+What object is in row 0, column 1? A: frog
+What object is in row 0, column 0? A: bird
+What object is in row 1, column 0? A: cat
+What object is in row 1, column 1? A: bird
+What object is in row 0, column 2? A: frog
+What object is in row 2, column 1? A: bird
+What object is in row 1, column 2? A: bird
+What object is in row 2, column 0? A: horse
+```
+
+Image-Only Version
+```
+![example](example.png)
+The grid above is size 3 by 3. Each cell contains an object from ['horse', 'bird', 'cat', 'frog'].
+What object is in row 2, column 2? A: bird
+What object is in row 0, column 1? A: frog
+What object is in row 0, column 0? A: bird
+What object is in row 1, column 0? A: cat
+What object is in row 1, column 1? A: bird
+What object is in row 0, column 2? A: frog
+What object is in row 2, column 1? A: bird
+What object is in row 1, column 2? A: bird
+What object is in row 2, column 0? A: horse
+```
+
+
 ## MM-Train
 This folder comprises:
 - Code for integrating image encoders with pre-trained language models.
@@ -50,10 +83,10 @@ This folder consists of:
 - [x] Get pretraining for GPT-2 on TinyStories working in LM-Train.
 - [x] Get pretraining for GPT-2 on synthetic data -> vibe eval for good performance
 - [x] Get training this model with a CLIP encoder, let's call it GPT-2v, working in MM-Train.
-- [ ] Different LR for different components
-- [ ] Evaluate this model on:
+- [x] Different LR for different components
+- [x] Evaluate this model on:
     - [x] Language-only tasks.
-    - [ ] Multimodal tasks.
+    - [x] Multimodal tasks.
 
 # Ablations
 - [ ] Scale # images v/s # q/a per images

@@ -18,7 +18,8 @@ class DataArguments:
     data_path: str = field(metadata={"help": "Path to the dataset."})
     split: str = field(metadata={"help": "Dataset split to use (e.g., 'train', 'validation', 'test')."})
     max_data_size: int = field(default=-1, metadata={"help": "Maximum number of samples to load."})
-
+    debug_data: bool = field(default=False, metadata={"help": "Whether to run in data debug mode."})
+    
 # Define model-specific arguments
 @dataclass
 class ModelArguments:
@@ -102,8 +103,8 @@ def main():
             param.requires_grad = False
 
     # Prepare dataset
-    dataset = LazySupervisedDataset(data_args.data_path, data_args.split, data_args.max_data_size)
-    data_collator = GPTJ_VLM_DataCollator(tokenizer, model.image_transforms)
+    dataset = LazySupervisedDataset(data_args.data_path, data_args.split, data_args.max_data_size, debug=data_args.debug_data)
+    data_collator = GPTJ_VLM_DataCollator(tokenizer, model.image_transforms, debug=data_args.debug_data)
 
     # Initialize custom trainer (no need to pass model_args here since we only need training_args)
     trainer = CustomTrainer(
