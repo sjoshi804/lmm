@@ -79,7 +79,7 @@ This folder consists of:
 - Benchmark datasets for standardized evaluation.
 - Tools for analyzing and visualizing evaluation results.
 
-# To Do
+# Basic Training / Testing
 - [x] Get pretraining for GPT-2 on TinyStories working in LM-Train.
 - [x] Get pretraining for GPT-2 on synthetic data -> vibe eval for good performance
 - [x] Get training this model with a CLIP encoder, let's call it GPT-2v, working in MM-Train.
@@ -87,6 +87,21 @@ This folder consists of:
 - [x] Evaluate this model on:
     - [x] Language-only tasks.
     - [x] Multimodal tasks.
+
+# Linear Probing
+
+- [ ] Probe on patches to determine if we can identify which object it is:
+    - this tests both object localization in patch embeddings as well as object classification (& in multi-image setting
+    - [ ] write some code to collect embeddings of all patches before multimodal projector ()
+    - [ ] train linear classifer: 
+        - [ ] collect embeddings for training data 
+        - [ ] for each position e.g. (0,0) -> we should concatenate the corresponding patch embeddings and train a linear classifier (10 classes)
+        - [ ] evaluating the linear classifier on a held out set.  
+
+# Vision Token Ablations
+
+Goal: step by step bridge the gap between the text-only and image-only settings. 
+- Simplest would be just put exact same embeddings 
 
 # Ablations
 - [ ] Scale # images v/s # q/a per images
