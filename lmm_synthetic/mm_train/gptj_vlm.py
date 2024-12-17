@@ -93,7 +93,7 @@ class GPTJ_VLM(PreTrainedModel):
         gptj_vlm.load_state_dict(safetensors.torch.load_file(os.path.join(pretrained_model_name_or_path, "model.safetensors")))
         return gptj_vlm
 
-    def generate(self, images, text_input_ids, max_length=50, num_beams=1, **generate_kwargs):
+    def generate(self, images, text_input_ids, max_new_tokens=50, num_beams=1, **generate_kwargs):
         """
         Generate text based on image and text inputs.
         
@@ -127,7 +127,7 @@ class GPTJ_VLM(PreTrainedModel):
             outputs = self.gptj.generate(
                 inputs_embeds=inputs_embeds,
                 attention_mask=attention_mask,
-                max_length=max_length,
+                max_new_tokens=max_new_tokens,
                 num_beams=num_beams,
                 **generate_kwargs
             )
@@ -135,7 +135,7 @@ class GPTJ_VLM(PreTrainedModel):
             # Generate outputs using the GPTJ model's generate method for text only
             outputs = self.gptj.generate(
                 input_ids=text_input_ids,
-                max_length=max_length,
+                max_new_tokens=max_new_tokens,
                 num_beams=num_beams,
                 **generate_kwargs
             )
