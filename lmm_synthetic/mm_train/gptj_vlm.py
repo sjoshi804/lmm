@@ -3,7 +3,6 @@ import os
 
 import safetensors.torch
 import torch
-from torch import nn
 from transformers import GPTJConfig, GPTJForCausalLM, PreTrainedModel, PretrainedConfig
 
 from lmm_synthetic.mm_train.utils import load_multimodal_projector, load_vision_encoder
@@ -22,6 +21,7 @@ class GPTJ_VLM_Config(PretrainedConfig):
         self.hidden_size = self.gptj_config.hidden_size if self.gptj_config is not None else None
         self.pretrained_lm_path = pretrained_lm_path  # also the path to the pretrained tokenizer
         self.multimodal = True
+        self.kwargs = kwargs
 
 
 class GPTJ_VLM(PreTrainedModel):
@@ -33,22 +33,41 @@ class GPTJ_VLM(PreTrainedModel):
     def __init__(self, config: GPTJ_VLM_Config):
         super().__init__(config)
         self.gptj = GPTJForCausalLM(config.gptj_config)
-        self.vision_encoder, self.image_transforms, self.vision_embed_dim = load_vision_encoder(config.vision_encoder_config)
+        self.vision_encoder, self.image_transforms, self.vision_embed_dim = load_vision_encoder(config.vision_encoder_config, config.kwargs)
         self.multimodal_projector = load_multimodal_projector(config.multimodal_projector_config, self.vision_embed_dim, self.gptj.config.hidden_size)
         self.config = config
 
     def forward(self, images, text_input_ids, label_ids):
         """
         Forward pass for the model.
+        
+        Args:
+            images (torch.Tensor): Batch of images to process.
+            text_input_ids (torch.Tensor): Batch of input text token IDs.
+            label_ids (torch.Tensor): Batch of label token IDs.
+        
+        Returns:
+            torch.Tensor: Model outputs.
         """
+        # Encode images to obtain embeddings
         image_embeds = self.multimodal_projector(self.vision_encoder(images))
+        
+        # Encode text input into embeddings
         text_embeds = self.gptj.transformer.wte(text_input_ids)
+        
+        # Concatenate image and text embeddings
         inputs_embeds = torch.cat([image_embeds, text_embeds], dim=1)
+        
+        # Create label IDs with -100 for image embeddings
         label_ids = torch.cat([torch.full(image_embeds.size()[:2], -100, dtype=torch.long, device=inputs_embeds.device), label_ids], dim=1)
+        
+        # Create attention mask
         attention_mask = torch.cat(
             [torch.ones(image_embeds.size()[:2], dtype=torch.long, device=inputs_embeds.device), text_input_ids.ne(self.config.pad_token_id)],
             dim=1
         )
+        
+        # Forward pass through GPTJ model
         outputs = self.gptj(
             inputs_embeds=inputs_embeds,
             attention_mask=attention_mask,
@@ -60,6 +79,14 @@ class GPTJ_VLM(PreTrainedModel):
     def from_pretrained(cls, pretrained_model_name_or_path, *model_args, **kwargs):
         """
         Load the model and configuration.
+        
+        Args:
+            pretrained_model_name_or_path (str): Path to the pretrained model.
+            model_args: Additional model arguments.
+            kwargs: Additional keyword arguments.
+        
+        Returns:
+            GPTJ_VLM: Loaded model.
         """
         config = GPTJ_VLM_Config.from_pretrained(pretrained_model_name_or_path, **kwargs)
         gptj_vlm = cls(config)
@@ -120,16 +147,23 @@ class GPTJ_VLM_DataCollator:
     """
     Data collator for GPTJ_VLM model.
     """
-    def __init__(self, tokenizer, image_transforms, max_length=512, debug=False):
+    def __init__(self, tokenizer, image_transforms, max_length=512, vision_token_ablation=False, debug=False):
         self.tokenizer = tokenizer
         self.image_transforms = image_transforms
         self.max_length = max_length
         local_rank = int(os.getenv("LOCAL_RANK", "-1"))  # Get the local rank from environment variables
         self.debug = debug and local_rank == 0
+        self.vision_token_ablation = vision_token_ablation
         
     def __call__(self, examples):
         """
         Collate function to process a batch of examples.
+        
+        Args:
+            examples (list): List of examples to process.
+        
+        Returns:
+            dict: Batch dictionary containing images, text_input_ids, and label_ids.
         """
         images = []
         input_ids_list = []
@@ -140,7 +174,10 @@ class GPTJ_VLM_DataCollator:
             full_input = ""
             
             # Extract image, prompt, and conversations
-            images.append(self.image_transforms(example["image"])) 
+            if self.vision_token_ablation:
+                images.append(self.image_transforms(example["grid"]))
+            else:
+                images.append(self.image_transforms(example["image"])) 
             prompt = example["prompt"] + "\n"
             conversations = example["conversations"]
             

@@ -1,37 +1,60 @@
-from torch.utils.data import Dataset
 from typing import Dict, List
-from PIL import Image
+
 from datasets import load_from_disk
+from loguru import logger
+from PIL import Image
+from torch.utils.data import Dataset
 import torchvision.transforms as transforms
 
+from lmm_synthetic.data.convert_to_multimodal import parse_grid_from_text
+
 class LazySupervisedDataset(Dataset):
-    """Dataset for multimodal supervised fine-tuning"""
+    """Dataset for multimodal supervised fine-tuning
+
+    Args:
+        data_path (str): Path to the dataset.
+        split (str): Dataset split (e.g., 'train', 'test').
+        max_data_size (int, optional): Maximum number of data samples to load. Defaults to -1 (load all).
+        vision_token_ablation (bool, optional): Whether to perform vision token ablation. Defaults to False.
+        debug (bool, optional): Whether to enable debug mode. Defaults to False.
+    """
 
     def __init__(
         self, 
         data_path: str, 
         split: str,
         max_data_size: int = -1,
+        vision_token_ablation: bool = False,
         debug: bool = False
     ) -> None:
         super(LazySupervisedDataset, self).__init__()
         self.debug = debug
+        self.vision_token_ablation = vision_token_ablation
+
+        # Load the dataset from disk
         hf_dataset = load_from_disk(data_path)[split]
         self.list_data_dict = []
+
+        # Process each sample in the dataset
         for sample in hf_dataset:
             prompt = sample.get("prompt", "")
             conversations = sample.get("conversations", [])
-            self.list_data_dict.append(
-            {
+            data_dict = {
                 "image": sample.get("image", None),
                 "prompt": prompt,
                 "conversations": conversations
-            })
+            }
             if self.debug:
-                self.list_data_dict[-1]["text"] = sample.get("text", "")
+                data_dict["text"] = sample.get("text", "")
+            if self.vision_token_ablation:
+                data_dict["grid"] = sample.get('grid', parse_grid_from_text(sample['text']))
+            self.list_data_dict.append(data_dict)
+
+        # Limit the dataset size if max_data_size is specified
         if max_data_size > 0:
             self.list_data_dict = self.list_data_dict[:max_data_size]
-        print("Dataset size:", len(self.list_data_dict))
+
+        logger.info(f"Dataset size: {len(self.list_data_dict)}")
 
         # Determine whether each sample is text-only
         self.is_text_only = [
@@ -39,15 +62,26 @@ class LazySupervisedDataset(Dataset):
         ]
 
     def __len__(self) -> int:
+        """Returns the total number of samples in the dataset."""
         return len(self.list_data_dict)
 
     def __getitem__(self, i) -> Dict[str, List]:
+        """Retrieves the sample at index `i`.
+
+        Args:
+            i (int): Index of the sample to retrieve.
+
+        Returns:
+            Dict[str, List]: A dictionary containing the sample data.
+        """
         sample = self.list_data_dict[i]
-        item_dict = dict(
-            image=Image.open(sample["image"]).convert("RGB"),
-            prompt=sample["prompt"],
-            conversations=sample["conversations"]
-        )
+        item_dict = {
+            "image": Image.open(sample["image"]).convert("RGB"),
+            "prompt": sample["prompt"],
+            "conversations": sample["conversations"]
+        }
         if self.debug:
             item_dict["text"] = sample["text"]
+        if self.vision_token_ablation:
+            item_dict["grid"] = sample["grid"]
         return item_dict
