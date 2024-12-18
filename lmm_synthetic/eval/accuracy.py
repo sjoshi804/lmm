@@ -13,7 +13,7 @@ from PIL import Image
 from tqdm import tqdm
 from transformers import AutoTokenizer, GPTJForCausalLM
 
-from lmm_synthetic.mm_train.utils import load_vision_encoder
+from lmm_synthetic.mm_train.utils import load_vision_encoder, VisionTokenAblations
 from lmm_synthetic.mm_train.gptj_vlm import GPTJ_VLM
 
 def load_model_and_tokenizer(model_path, multimodal=False):
@@ -175,7 +175,7 @@ def evaluate_model_on_dataset(model, tokenizer, dataset, split, K, num_samples=2
     logger.info(f"Starting evaluation on {num_samples} grids")
     pbar = tqdm(enumerate(dataset[split]), total=num_samples)
     
-    _, image_transforms, _ = load_vision_encoder("clip")
+    _, image_transforms, _ = load_vision_encoder(model.config.vision_encoder_config, model.config.kwargs)
     
     for i, example in pbar:
         if num_grids == num_samples:
@@ -199,7 +199,10 @@ def evaluate_model_on_dataset(model, tokenizer, dataset, split, K, num_samples=2
             
         if multimodal_model:
             if multimodal_data:
-                image_tensor = image_transforms(Image.open(example["image"])).unsqueeze(0)
+                if model.config.vision_encoder_config in [e.value for e in VisionTokenAblations]:
+                    image_tensor = image_transforms(grid).unsqueeze(0)
+                else:    
+                    image_tensor = image_transforms(Image.open(example["image"])).unsqueeze(0)
                 image_tensors = [image_tensor for _ in range(K * K)]
                 image_tensors = torch.cat(image_tensors, dim=0)
                 responses = generate_responses_vlm(model, tokenizer, image_tensors, position_prompts, max_new_tokens=5)
@@ -288,11 +291,12 @@ def main():
     parser.add_argument("--K", type=int, default=3, help="Size of the grid (KxK)")
     parser.add_argument("--num_samples", type=int, default=250, help="Number of grids to evaluate")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+    parser.add_argument("--results_dir", type=str, default="/home/sjoshi/lmm/lmm_synthetic/results", help="Directory to save results")
 
     args = parser.parse_args()
     # Create results directory if it doesn't exist
-    os.makedirs("results", exist_ok=True)
-    args.output_file = "results/" + datetime.now().strftime('%Y%m%d_%H%M%S') + ".json"
+    os.makedirs(args.results_dir, exist_ok=True)
+    args.output_file = os.path.join(args.results_dir, datetime.now().strftime('%Y%m%d_%H%M%S') + ".json")
     args.multimodal_data = "multimodal" in args.dataset_path
     with open(os.path.join(args.model_path, "config.json"), "r") as f:
         model_config = json.load(f)
