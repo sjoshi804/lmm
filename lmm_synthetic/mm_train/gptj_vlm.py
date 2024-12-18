@@ -100,7 +100,7 @@ class GPTJ_VLM(PreTrainedModel):
         Args:
             images (torch.Tensor): Batch of images to process.
             text_input_ids (torch.Tensor): Batch of input text token IDs.
-            max_length (int): Maximum length of the generated sequence.
+            max_new_tokens (int): Maximum length of the generated sequence.
             num_beams (int): Number of beams for beam search. Default is 1 (greedy search).
             generate_kwargs: Additional arguments for the `generate` method.
         
