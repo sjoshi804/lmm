@@ -1,54 +1,40 @@
-import argparse
-import json
-import os
-import random
-from datasets import load_from_disk
-from loguru import logger
-from tqdm import tqdm
-from PIL import Image
-import re
-from datasets import DatasetDict, Dataset
-import pandas as pd
-from datasets import load_dataset
+from datasets import load_dataset, load_from_disk, DatasetDict, Dataset
+
+path = "/data/lmm/generated/v3_spatial_grid_multimodal"
+dataset = load_from_disk(path)
+
+# Copy old dataset, change image path
+def copy(type):
+    data = []
+    for i in range(len(dataset[type])):
+        temp = {'text' : dataset[type][i]['text'], 'prompt' : dataset[type][i]['prompt'], 
+        'conversations' : dataset[type][i]['conversations'], 'image' : f'/home/allanz/data/grid/{type}/{i}.png'}
+        data.append(temp)
+    return data
+
+train = copy('train')
+validation = copy('validation')
+test = copy('test')
 
 
-# Load CIFAR-10 dataset
-datasets = load_dataset("cifar10")
+def convert_to_dict_of_lists(data):
+    result = {}
+    for key in data[0].keys():  
+        result[key] = [entry[key] for entry in data]
+    return result
 
-# Get the label names and their corresponding IDs
-label_names = datasets["train"].features["label"].names
-label2id, id2label = dict(), dict()
-for i, label in enumerate(label_names):
-    label2id[label] = i
-    id2label[i] = label
+# Convert 'train', 'validation', and 'test' lists into dicts of lists
+train_dict = convert_to_dict_of_lists(train)
+validation_dict = convert_to_dict_of_lists(validation)
+test_dict = convert_to_dict_of_lists(test)
 
-# Initialize dict to store indexes of each class
-class_index = {}
-for label in label_names:
-    class_index[label] = []
+# Create the datasets using from_dict
+train_dataset = Dataset.from_dict(train_dict)
+validation_dataset = Dataset.from_dict(validation_dict)
+test_dataset = Dataset.from_dict(test_dict)
 
-# Create list of indexes for each class
-labels = datasets['train']['label']
-for i in range(len(labels)):
-    class_name = id2label[labels[i]]
-    class_index[class_name].append(i)
-
-# Load your image from the dataset
-image = datasets['train'][0]["img"]
-
-# Specify the path to the folder
-output_folder = '/home/allanz/data/images/{class_name}'
-
-for name in label_names:
-    # Set correct output directory path
-    output_directory = output_folder.format(class_name=name)
-    print(f"Saving images to {output_directory}")
-    count = 0
-    for index in class_index[name]:
-        image = datasets['train'][index]["img"]
-        image.save(os.path.join(output_directory, f"{count}.png"))
-        count += 1
-    
-    print(f"Images for class {name} saved successfully!")
+# Save the datasets
+dataset_dict = DatasetDict({'train': train_dataset, 'validation': validation_dataset, 'test': test_dataset})
+dataset_dict.save_to_disk('/home/allanz/data/datasets/v3.1_spatial_grid_multimodal')
 
 
