@@ -149,8 +149,8 @@ def create_new_dataset(old_dataset_path, save_path):
     print("Successfully saved new dataset")
 
 
-save_cifar10("/home/allanz/data/images")
+#save_cifar10("/home/allanz/data/images")
 #save_merged_grid('/data/lmm/generated/v3_spatial_grid_multimodal', "train",  1000, 0, 100000)
 #save_merged_grid('/data/lmm/generated/v3_spatial_grid_multimodal', "validation", 1000, 0, 1000)
 #save_merged_grid('/data/lmm/generated/v3_spatial_grid_multimodal', "test", 1000, 0, 1000)
-#create_new_dataset('/data/lmm/generated/v3_spatial_grid_multimodal','/home/allanz/data/datasets/v3.1_spatial_grid_multimodal')
+create_new_dataset('/data/lmm/generated/v3_spatial_grid_multimodal','/home/allanz/data/datasets/v3.1_spatial_grid_multimodal')
