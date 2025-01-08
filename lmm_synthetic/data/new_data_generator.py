@@ -47,7 +47,7 @@ def save_cifar10(output_directory):
 
 
 # Creates merged grid
-def merge_image(grid, final_size=(256, 256), num_unique_images = 1000, border_size = 6):
+def merge_image(grid, final_size=(256, 256), num_unique_images = 1000, border_size = 6, set_type = "train"):
     """
     Creates 3x3 image grid from 3x3 grid of words, returns the image grid
     """
@@ -70,7 +70,12 @@ def merge_image(grid, final_size=(256, 256), num_unique_images = 1000, border_si
     # Place each image in the combined image
     for row_index, row in enumerate(grid):
         for col_index, word in enumerate(row):
-            i = random.randint(0, num_unique_images)
+            if type == "train":
+                i = random.randint(0, num_unique_images)
+            elif type == "validation":
+                i = random.raindint(2000, 2000 + num_unique_images)
+            elif type == "test":
+                i = random.raindint(4000, 4000 + num_unique_images)
             # Change path if necessary
             img = Image.open(f"/home/allanz/data/images/{word}/{i}.png").resize((element_height, element_width), Image.Resampling.LANCZOS)
             x = col_index * (element_width + BORDER_SIZE)
@@ -78,6 +83,7 @@ def merge_image(grid, final_size=(256, 256), num_unique_images = 1000, border_si
             combined_image.paste(img, (x, y))
     
     return combined_image
+
 
 def save_merged_grid(previous_dataset_path, set_type, num_unique_images, start, last):
     """
@@ -105,6 +111,7 @@ def save_merged_grid(previous_dataset_path, set_type, num_unique_images, start, 
         count += 1
         print(f"Grid {count} for {set_type} saved successfully!")
     print(f"Grids for {set_type} saved successfully!")
+
 
 # Copy old dataset, change image path
 def copy(type, old_dataset_path):
