@@ -40,7 +40,7 @@ def save_cifar10(output_directory):
         count = 0
         for index in class_index[name]:
             image = datasets['train'][index]["img"]
-            image.save(os.path.join(output_directory, f"{count}.png"))
+            image.save(os.path.join(output_folder, f"{count}.png"))
             count += 1
 
         print(f"Images for class {name} saved successfully!")
@@ -103,7 +103,7 @@ def save_merged_grid(previous_dataset_path, set_type, num_unique_images, start, 
         img = merge_image(temp_grid, num_unique_images = num_unique_images)
         img.save(f"/home/allanz/data/grid/{set_type}/{count}.png")
         count += 1
-        #print(f"Grid {count} for {set_type} saved successfully!")
+        print(f"Grid {count} for {set_type} saved successfully!")
     print(f"Grids for {set_type} saved successfully!")
 
 # Copy old dataset, change image path
@@ -149,7 +149,7 @@ def create_new_dataset(old_dataset_path, save_path):
     print("Successfully saved new dataset")
 
 
-#save_cifar10("/home/allanz/data/images")
+save_cifar10("/home/allanz/data/images")
 #save_merged_grid('/data/lmm/generated/v3_spatial_grid_multimodal', "train",  1000, 0, 100000)
 #save_merged_grid('/data/lmm/generated/v3_spatial_grid_multimodal', "validation", 1000, 0, 1000)
 #save_merged_grid('/data/lmm/generated/v3_spatial_grid_multimodal', "test", 1000, 0, 1000)
