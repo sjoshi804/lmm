@@ -59,7 +59,7 @@ class LazySupervisedDataset(Dataset):
                 prompt = sample.get("prompt", "")
                 grid_index = find_text(sample.get("text", ""), "\n", 3)
                 grid = sample.get("text", "")[0:grid_index]
-                conversations = ["", grid]
+                conversations = [["", grid]]
                 data_dict = {
                     "image": sample.get("image", None),
                     "prompt": prompt,
@@ -78,16 +78,28 @@ class LazySupervisedDataset(Dataset):
                     if sub_sampling == True:
                         conversations = []
                         response = ""
+                        shuffled = random.sample(sample["conversations"], num_samples)
                         for entry in random.sample(sample["conversations"], num_samples):
                             for subentry in entry:
-                                response += " " + subentry
+                                response += "" + subentry
+                        response = ""
+                        for i in range(len(shuffled)):
+                            for j in range(len(shuffled[i])):
+                                if j % 2 == 1:
+                                    response += shuffled[i][j] + "\n"
+                                else:
+                                    response += shuffled[i][j]
                         conversations.append(["", response])
                     else:
+                        conversations = []
                         response = ""
-                        for entry in sample["conversations"]:
-                            for subentry in entry:
-                                response += " " + subentry
-                        conversations = ["", response]
+                        for i in range(len(sample["conversations"])):
+                            for j in range(len(sample["conversations"][i])):
+                                if j % 2 == 1:
+                                    response += sample["conversations"][i][j] + "\n"
+                                else:
+                                    response += sample["conversations"][i][j]
+                        conversations.append(["", response])
                 else:
                     if sub_sampling == True:
                         conversations = random.sample(sample["conversations"], num_samples)
