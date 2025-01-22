@@ -27,6 +27,7 @@ class LazySupervisedDataset(Dataset):
         max_data_size (int, optional): Maximum number of data samples to load. Defaults to -1 (load all).
         vision_token_ablation (bool, optional): Whether to perform vision token ablation. Defaults to False.
         debug (bool, optional): Whether to enable debug mode. Defaults to False.
+        alignment (bool, optional): Whether to concatenate everything into reponse for alignment training
         image_grid (bool, optional): Whether to have dataset only include image and text grid
         sub_sampling (bool, optional): Whether to subsample the conversations
         num_samples (int, optional): Number of conversations to subsample
@@ -39,6 +40,7 @@ class LazySupervisedDataset(Dataset):
         max_data_size: int = -1,
         vision_token_ablation: bool = False,
         debug: bool = False,
+        alignment: bool = False,
         image_grid: bool = False,
         sub_sampling: bool = False,
         num_samples: int = 3
@@ -51,6 +53,7 @@ class LazySupervisedDataset(Dataset):
         hf_dataset = load_from_disk(data_path)[split]
         self.list_data_dict = []
 
+        # Image grid is already suited for alignment training
         if image_grid == True:
             for sample in hf_dataset:
                 prompt = sample.get("prompt", "")
@@ -68,36 +71,40 @@ class LazySupervisedDataset(Dataset):
                     data_dict["grid"] = sample.get('grid', parse_grid_from_text(sample['text']))
                 self.list_data_dict.append(data_dict)
 
-        elif sub_sampling == True:
-            # Process each sample in the dataset
-            for sample in hf_dataset:
-                prompt = sample.get("prompt", "")
-                conversations = random.sample(sample["conversations"], num_samples)
-                data_dict = {
-                    "image": sample.get("image", None),
-                    "prompt": prompt,
-                    "conversations": conversations
-                }
-                if self.debug:
-                    data_dict["text"] = sample.get("text", "")
-                if self.vision_token_ablation:
-                    data_dict["grid"] = sample.get('grid', parse_grid_from_text(sample['text']))
-                self.list_data_dict.append(data_dict)
         else:
-        # Process each sample in the dataset
             for sample in hf_dataset:
                 prompt = sample.get("prompt", "")
-                conversations = sample.get("conversations", [])
+                if alignment == True:
+                    if sub_sampling == True:
+                        conversations = []
+                        response = ""
+                        for entry in random.sample(sample["conversations"], num_samples):
+                            for subentry in entry:
+                                response += " " + subentry
+                        conversations.append(["", response])
+                    else:
+                        response = ""
+                        for entry in sample["conversations"]:
+                            for subentry in entry:
+                                response += " " + subentry
+                        conversations = ["", response]
+                else:
+                    if sub_sampling == True:
+                        conversations = random.sample(sample["conversations"], num_samples)
+                    else:
+                        conversations = sample.get("conversations", [])
                 data_dict = {
                     "image": sample.get("image", None),
                     "prompt": prompt,
                     "conversations": conversations
-                }
+                    }
                 if self.debug:
                     data_dict["text"] = sample.get("text", "")
                 if self.vision_token_ablation:
                     data_dict["grid"] = sample.get('grid', parse_grid_from_text(sample['text']))
                 self.list_data_dict.append(data_dict)
+
+
 
         # Limit the dataset size if max_data_size is specified
         if max_data_size > 0:
