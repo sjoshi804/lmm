@@ -56,7 +56,7 @@ class LazySupervisedDataset(Dataset):
                 prompt = sample.get("prompt", "")
                 grid_index = find_text(sample.get("text", ""), "\n", 3)
                 grid = sample.get("text", "")[0:grid_index]
-                conversations = [prompt, grid]
+                conversations = ["", grid]
                 data_dict = {
                     "image": sample.get("image", None),
                     "prompt": prompt,
