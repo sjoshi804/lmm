@@ -85,3 +85,5 @@ class LazySupervisedDataset(Dataset):
         if self.vision_token_ablation:
             item_dict["grid"] = sample["grid"]
         return item_dict
+    
+print(LazySupervisedDataset(r"/home/allanz/data/datasets/v3.1_spatial_grid_multimodal/", "train", 10, False, False))
