@@ -168,7 +168,7 @@ def create_dataset_from_json(num_samples, num_questions, num_rows, num_cols, voc
     
     # Ensure the output directory exists
     
-    dataset_dir = "/home/allanz/data/datasets/spuco/"
+    dataset_dir = "/home/allanz/data/datasets/spuco/text_dataset"
     
     # Save the entire dataset dictionary to disk
     dataset_dict.save_to_disk(dataset_dir)
@@ -177,7 +177,7 @@ def create_dataset_from_json(num_samples, num_questions, num_rows, num_cols, voc
     return dataset_dict
 
 create_dataset_from_json(
-    {"train": 10, "validation": 1, "test": 1},
+    {"train": 100000, "validation": 1000, "test": 1000},
     9,  # num_questions
     3,  # num_rows
     3,  # num_cols
