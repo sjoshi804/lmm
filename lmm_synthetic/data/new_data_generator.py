@@ -70,12 +70,12 @@ def merge_image(grid, final_size=(256, 256), num_unique_images = 1000, border_si
     # Place each image in the combined image
     for row_index, row in enumerate(grid):
         for col_index, word in enumerate(row):
-            if type == "train":
+            if set_type == "train":
                 i = random.randint(0, num_unique_images)
-            elif type == "validation":
-                i = random.raindint(2000, 2000 + num_unique_images)
-            elif type == "test":
-                i = random.raindint(4000, 4000 + num_unique_images)
+            elif set_type == "validation":
+                i = random.randint(2000, 2000 + num_unique_images)
+            elif set_type == "test":
+                i = random.randint(4000, 4000 + num_unique_images)
             # Change path if necessary
             img = Image.open(f"/home/allanz/data/images/{word}/{i}.png").resize((element_height, element_width), Image.Resampling.LANCZOS)
             x = col_index * (element_width + BORDER_SIZE)

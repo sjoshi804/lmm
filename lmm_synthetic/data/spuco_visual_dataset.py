@@ -185,4 +185,4 @@ def create_new_dataset(old_dataset_path, save_path):
 #save_merged_grid('/home/allanz/data/datasets/spuco/text_reformatted', "train",  1000, 0, 100000)
 #save_merged_grid('/home/allanz/data/datasets/spuco/text_reformatted', "validation", 1000, 0, 1000)
 #save_merged_grid('/home/allanz/data/datasets/spuco/text_reformatted', "test", 1000, 0, 1000)
-create_new_dataset('/home/allanz/data/datasets/spuco/text_reformatted','/home/allanz/data/datasets/spuco_multimodal')
+#create_new_dataset('/home/allanz/data/datasets/spuco/text_reformatted','/home/allanz/data/datasets/spuco_multimodal')
