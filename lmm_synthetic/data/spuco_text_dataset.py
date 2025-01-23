@@ -10,6 +10,9 @@ from loguru import logger
 from tqdm import trange
 import os 
 
+
+
+
   
 def create_grid(num_rows: int, num_cols: int, vocab: List[str], vocab_subset_size: int, spuco: bool, position: tuple, correlation: int, label = "dog") -> List[List[str]]:
     """
@@ -176,7 +179,7 @@ def create_dataset_from_json(num_samples, num_questions, num_rows, num_cols, voc
 
     return dataset_dict
 
-create_dataset_from_json(
+#create_dataset_from_json(
     {"train": 100000, "validation": 1000, "test": 1000},
     9,  # num_questions
     3,  # num_rows
