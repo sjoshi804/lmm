@@ -1,0 +1,12 @@
+{
+    "num_samples": {"train": 6, "validation": 2, "test": 2},
+    "num_rows": 3,
+    "num_cols": 3,
+    "vocab": ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"],
+    "vocab_subset_size": 4,
+    "spuco": true,
+    "position": [0, 0],
+    "correlation": 10,
+    "label": "dog",
+    "num_questions": 5
+}
