@@ -6,6 +6,30 @@ import json
 #args = {num_samples, num_questions, num_rows, num_cols, vocab, vocab_subset_size, spuco, position, correlation, label, save_path = "/home/allanz/data/datasets/spuco/text_dataset"}
 
 def create(num_samples, num_questions, num_rows, num_cols, vocab, vocab_subset_size, spuco, position, correlation, label, text_save_path, multimodal_save_path, unique_images):
+    """
+        Creates a synthetic multimodal dataset
+    
+        Args:
+            num_samples (dict): General form of dataset
+                ex) {"train": 100, "validation": 1, "test": 1}
+            num_questions (int): Number of questions to ask about the grid
+            num_rows (int): Number of rows in the grid
+            num_cols (int): Number of columns in the grid
+            vocab (list): List of vocabulary words (currently cifar10 labels)
+            vocab_subset_size (int): Size of the subset of the vocabulary to use to create a grid
+            spuco (bool): Flag to indicate whether spurious feature should be included
+            position (tuple): Position of the spurious label in the grid
+            correlation (float): Frequency by which label appears in position
+                ex) 0.9 = 90% frequency
+            label (str): Label of spurious feature, defaults to "dog"
+            text_save_path (str): Path to save the text dataset
+            multimodal_save_path (str): Path to save the multimodal dataset
+            unique_images (bool): Flag to ensure unique images in the dataset 
+        
+        Returns:
+            None      
+    """   
+    
     create_dataset(num_samples, num_questions, num_rows, num_cols, vocab, vocab_subset_size, spuco, position, correlation, label, text_save_path)    
     
     reformatted_dataset = format_dataset(text_save_path)
