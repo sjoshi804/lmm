@@ -46,8 +46,8 @@ def create(num_samples, num_questions, num_rows, num_cols, vocab, vocab_subset_s
         save_merged_grid(reformatted_dataset, "validation", num_unique_images = unique_images, start = 0, last = len(reformatted_dataset["validation"]), spuco = False)
         create_new_dataset(reformatted_dataset, multimodal_save_path, spuco = False)
 
-
-create(num_samples = {"train": 100, "validation": 1, "test": 1}, num_questions = 9,  num_rows = 3,  num_cols = 3,  vocab = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck'], vocab_subset_size = 4, spuco = False, position = (0, 0), correlation = 9, label ="dog", text_save_path = "/home/allanz/data/datasets/spuco/test/text_dataset", multimodal_save_path = "/home/allanz/data/datasets/spuco/test/multimodal_dataset", unique_images = 1000)
+# Example of a call to create a spuco dataset
+create(num_samples = {"train": 100, "validation": 1, "test": 1}, num_questions = 9,  num_rows = 3,  num_cols = 3,  vocab = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck'], vocab_subset_size = 4, spuco = True, position = (0, 0), correlation = 9, label ="dog", text_save_path = "/home/allanz/data/datasets/spuco/test/text_dataset", multimodal_save_path = "/home/allanz/data/datasets/spuco/test/multimodal_dataset", unique_images = 1000)
 
 
 
@@ -88,7 +88,7 @@ def create_from_json(json_file_path: str):
     )
 
 
-
+"""
 if __name__ == "__main__":
     # Set up argument parsing
     parser = argparse.ArgumentParser(description="Create dataset from JSON configuration.")
@@ -97,3 +97,4 @@ if __name__ == "__main__":
 
     # Call the function to create the dataset
     create_from_json(args.config)
+"""

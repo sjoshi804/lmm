@@ -12,9 +12,9 @@ from transformers import (
     get_scheduler
 )
 
-from gptj_vlm import GPTJ_VLM, GPTJ_VLM_Config, GPTJ_VLM_DataCollator
+from new_gptj_vlm import GPTJ_VLM, GPTJ_VLM_Config, GPTJ_VLM_DataCollator
 from lmm_synthetic.mm_train.utils import VisionTokenAblations
-from mm_datasets import LazySupervisedDataset
+from new_mm_datasets import LazySupervisedDataset
 
 # Define data-specific arguments
 @dataclass

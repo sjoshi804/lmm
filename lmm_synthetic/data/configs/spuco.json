@@ -1,0 +1,19 @@
+{
+    "num_samples": {
+        "train": 100,
+        "validation": 1,
+        "test": 1
+    },
+    "num_questions": 9,
+    "num_rows": 3,
+    "num_cols": 3,
+    "vocab": ["airplane", "automobile", "bird", "cat", "deer", "dog", "frog", "horse", "ship", "truck"],
+    "vocab_subset_size": 4,
+    "spuco": false,
+    "position": [0, 0],
+    "correlation": 9,
+    "label": "dog",
+    "text_save_path": "/home/allanz/data/datasets/spuco/test/text_dataset",
+    "multimodal_save_path": "/home/allanz/data/datasets/spuco/test/multimodal_dataset",
+    "unique_images": 1000
+}

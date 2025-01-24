@@ -48,7 +48,6 @@ def create_grid(num_rows: int, num_cols: int, vocab: List[str], vocab_subset_siz
         vocab_subset = random.sample(vocab, vocab_subset_size)
         grid = [[random.choice(vocab_subset) for _ in range(num_cols)] for _ in range(num_rows)]
 
-    print(grid)
     return grid
 
 
@@ -178,4 +177,3 @@ def create_dataset(num_samples, num_questions, num_rows, num_cols, vocab, vocab_
     return dataset_dict
 
 
-create_dataset(num_samples = {"train": 100, "validation": 1, "test": 1}, num_questions = 9,  num_rows = 3,  num_cols = 3,  vocab = ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck'], vocab_subset_size = 4, spuco = True, position = (0, 0), correlation = 9, label ="dog", text_save_path = "/home/allanz/data/datasets/spuco/test/text_dataset")
