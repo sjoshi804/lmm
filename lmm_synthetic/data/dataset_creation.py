@@ -88,7 +88,7 @@ def create_from_json(json_file_path: str):
     )
 
 
-"""
+
 if __name__ == "__main__":
     # Set up argument parsing
     parser = argparse.ArgumentParser(description="Create dataset from JSON configuration.")
@@ -97,4 +97,3 @@ if __name__ == "__main__":
 
     # Call the function to create the dataset
     create_from_json(args.config)
-"""

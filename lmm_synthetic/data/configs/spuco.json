@@ -1,8 +1,8 @@
 {
     "num_samples": {
         "train": 100,
-        "validation": 1,
-        "test": 1
+        "validation": 10,
+        "test": 10
     },
     "num_questions": 9,
     "num_rows": 3,

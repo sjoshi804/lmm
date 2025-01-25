@@ -8,6 +8,7 @@ import torchvision.transforms as transforms
 import random
 import math
 import json
+import ast
 
 from lmm_synthetic.data.convert_to_multimodal import parse_grid
 
@@ -17,7 +18,61 @@ def find_text(text, char, index):
         if text[i] == char:
             count += 1
             if count == index:
-                return i 
+                return i
+
+# Opposite of parse_grid
+def unparse_grid(grid):
+    """
+    Convert a 2D list of grid cells into a grid string with | separators.
+
+    Args:
+        grid (list): A 2D list representing the grid cells.
+
+    Returns:
+        str: The grid string with rows separated by newlines and cells enclosed by |.
+    """
+    rows = [f"| {' | '.join(row)} |" for row in grid]
+    grid_str = "\n".join(rows)
+    return grid_str
+
+def modality_mismatch(entry, num_corrupted_cells, corrupt_questions):
+    """
+    Function to mismatch the image and text grids
+
+    Args:
+        entry (dict): original dataset input 
+        num_corrupted_cells (int): number of cells to corrupt
+        corrupt_questions (bool): whether or not to corrupt the questions as well
+
+    Return:
+        corrupted data entry
+    """
+    corrupt_cells = []
+    grid_index = find_text(entry.get("text", ""), "\n", 3)
+    test = find_text(entry.get("text", ""), ".", 2)
+    grid = entry["text"][0:grid_index]
+    text_grid = parse_grid(grid, 3)
+    options = ast.literal_eval(entry["text"][grid_index + 66:test])
+    original = entry["text"][grid_index:]
+    
+    while len(corrupt_cells) < num_corrupted_cells:
+        x = random.choice(range(0,3))
+        y = random.choice(range(0,3))
+        if [x, y] not in corrupt_cells:
+            corrupt_cells.append([x, y])
+    for x,y in corrupt_cells:
+        current = text_grid[x][y]
+        switch = options.copy()
+        switch.remove(current)
+        replace = random.choice(switch)
+        text_grid[x][y] = replace
+        if corrupt_questions:
+            for conversation in entry["conversations"]:
+                if f"row {x}" in conversation[0] and f"column {y}" in conversation[0]:
+                    conversation[1] = replace
+    entry["text"] = unparse_grid(text_grid) + original  
+    return entry  
+
 
 
 class LazySupervisedDataset(Dataset):
@@ -36,7 +91,9 @@ class LazySupervisedDataset(Dataset):
         distinct_image(bool, optional): Whether to limit the number of unique images to show 
         num_distinct_img (float, optional): Percent of unique images to show from each subset
         num_questions (int, optional): Number questions to show for each image
-
+        modality_mismatch (bool, optional): Whether to mismatch the image and text grids
+        num_corrupted_cells (int, optional): Number of cells to corrupt
+        corrupt_questions (bool, optional): Whether to corrupt the questions as well
     """
 
     def __init__(
@@ -61,6 +118,9 @@ class LazySupervisedDataset(Dataset):
         distinct_image = config.get("distinct_image", False)
         num_distinct_img = config.get("num_distinct_img", 0.5)
         num_distinct_questions = config.get("num_distinct_questions", 2)
+        mismatch = config.get("mismatch", False)
+        num_corrupted_cells = config.get("num_corrupted_cells", 1)
+        corrupt_questions = config.get("corrupt_questions", False)
 
         # Load the dataset from disk
         hf_dataset = load_from_disk(data_path)[split]
@@ -69,6 +129,8 @@ class LazySupervisedDataset(Dataset):
         # Image grid is already suited for alignment training
         if image_grid == True:
             for sample in hf_dataset:
+                if mismatch:
+                    sample = modality_mismatch(sample, num_corrupted_cells, corrupt_questions)
                 prompt = sample.get("prompt", "")
                 grid_index = find_text(sample.get("text", ""), "\n", 3)
                 grid = sample.get("text", "")[0:grid_index]
@@ -90,6 +152,8 @@ class LazySupervisedDataset(Dataset):
                     subset = hf_dataset.select(range(0, int(max_data_size * num_distinct_img)))
                     count = 0
                     for sample in subset:
+                        if mismatch:
+                            sample = modality_mismatch(sample, num_corrupted_cells, corrupt_questions)
                         prompt = sample.get("prompt", "")
                         for i in range(0, math.ceil(1/num_distinct_img)):
                             conversations = []
@@ -116,6 +180,8 @@ class LazySupervisedDataset(Dataset):
                     subset = hf_dataset.select(range(0, int(max_data_size * num_distinct_img)))
                     count = 0
                     for sample in subset:
+                        if mismatch:
+                            sample = modality_mismatch(sample, num_corrupted_cells, corrupt_questions)
                         prompt = sample.get("prompt", "")
                         for i in range(0, math.ceil(1/num_distinct_img)):
                             conversations = random.sample(sample["conversations"], num_distinct_questions)
@@ -134,6 +200,8 @@ class LazySupervisedDataset(Dataset):
                                 break
             else:
                 for sample in hf_dataset:
+                    if mismatch:
+                        sample = modality_mismatch(sample, num_corrupted_cells, corrupt_questions)
                     prompt = sample.get("prompt", "")
                     if alignment == True:
                         if sub_sampling == True:
