@@ -8,6 +8,7 @@ import torchvision.transforms as transforms
 import random
 import math
 import json
+import os
 
 from lmm_synthetic.data.convert_to_multimodal import parse_grid
 
@@ -18,6 +19,16 @@ def find_text(text, char, index):
             count += 1
             if count == index:
                 return i 
+
+def load_params_from_json(json_file_path: str) -> Dict:
+    """Load parameters from a JSON file."""
+    if not os.path.exists(json_file_path):
+        raise FileNotFoundError(f"JSON file not found: {json_file_path}")
+    with open(json_file_path, "r") as f:
+        content = f.read()
+        print(f"JSON content: {content}")  # Debug: Print file content
+        params = json.loads(content)  # Use json.loads to parse string
+    return params
 
 
 class LazySupervisedDataset(Dataset):
@@ -198,6 +209,24 @@ class LazySupervisedDataset(Dataset):
         if self.vision_token_ablation:
             item_dict["grid"] = sample["grid"]
         return item_dict
-    
 
-original_alignment = LazySupervisedDataset(r"/home/allanz/data/datasets/spuco/test/multimodal_dataset", "train", 10, False, True, True, False, False, 0, True, 0.5, 3)
+def create_dataset_from_json(json_file_path: str):
+    """Create a LazySupervisedDataset instance from a JSON file."""
+    params = load_params_from_json(json_file_path)
+    required_params = ["data_path", "split"]
+    for param in required_params:
+        if param not in params:
+            raise ValueError(f"Missing required parameter '{param}' in JSON file.")
+    return LazySupervisedDataset(**params)
+
+
+#original_alignment = LazySupervisedDataset(r"/home/allanz/data/datasets/spuco/test/multimodal_dataset", "train", 10, False, True, True, False, False, 0, True, 0.5, 3)
+
+
+if __name__ == "__main__":
+    # Path to the JSON file holding parameters
+    json_file_path = "/home/allanz/lmm/lmm_synthetic/mm_train/dataset_configs/test.json"
+
+    # Create dataset instance using the JSON file
+    dataset = create_dataset_from_json(json_file_path)
+    print(f"Dataset size: {len(dataset)}")
