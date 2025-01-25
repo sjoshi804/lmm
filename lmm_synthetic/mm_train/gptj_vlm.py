@@ -148,14 +148,13 @@ class GPTJ_VLM_DataCollator:
     """
     Data collator for GPTJ_VLM model.
     """
-    def __init__(self, tokenizer, image_transforms, max_length=512, vision_token_ablation=False, debug=False, prompt_loss = False):
+    def __init__(self, tokenizer, image_transforms, max_length=512, vision_token_ablation=False, debug=False):
         self.tokenizer = tokenizer
         self.image_transforms = image_transforms
         self.max_length = max_length
         local_rank = int(os.getenv("LOCAL_RANK", "-1"))  # Get the local rank from environment variables
         self.debug = debug and local_rank == 0
         self.vision_token_ablation = vision_token_ablation
-        self.prompt_loss = prompt_losos
         
     def __call__(self, examples):
         """
@@ -186,15 +185,12 @@ class GPTJ_VLM_DataCollator:
             if debug:
                 full_input += prompt 
             
-            # Tokenize prompt if prompt_loss is True
+            # No prompt loss
             prompt_input_ids = self.tokenizer(prompt, return_tensors='pt', padding=True)['input_ids'].squeeze(0)
-            if prompt_loss == True:
-                input_ids = [prompt_input_ids]
-                label_ids = [prompt_input_ids.clone()]
-            else:
-                excluded_prompt_input_ids = torch.full(prompt_input_ids.shape, -100, dtype=torch.long) 
-                input_ids = [excluded_prompt_input_ids]
-                label_ids = [excluded_prompt_input_ids.clone()] # put -100s instead of tokenids so no loss 
+            
+            excluded_prompt_input_ids = torch.full(prompt_input_ids.shape, -100, dtype=torch.long) 
+            input_ids = [excluded_prompt_input_ids]
+            label_ids = [excluded_prompt_input_ids.clone()] # put -100s instead of tokenids so no loss 
 
             # Tokenize conversations
             for conv_num, (instr, resp) in enumerate(conversations):

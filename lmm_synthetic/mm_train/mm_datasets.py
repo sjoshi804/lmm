@@ -41,23 +41,26 @@ class LazySupervisedDataset(Dataset):
 
     def __init__(
         self, 
-        data_path: str, 
-        split: str,
-        max_data_size: int = -1,
-        vision_token_ablation: bool = False,
-        debug: bool = False,
-        alignment: bool = False,
-        image_grid: bool = False,
-        sub_sampling: bool = False,
-        num_samples: int = 3,
-        distinct_image: bool = False,
-        num_distinct_img: float = 0.5,
-        num_distinct_questions: int = 2
+        config_json: str
 
     ) -> None:
         super(LazySupervisedDataset, self).__init__()
-        self.debug = debug
-        self.vision_token_ablation = vision_token_ablation
+        with open(config_json, 'r') as f:
+            config = json.load(f)
+        
+
+        self.debug = config.get("debug", False)
+        self.vision_token_ablation = config.get("vision_token_ablation", False)
+        data_path = config.get("data_path", None)
+        split = config.get("split", None)
+        max_data_size = config.get("max_data_size", -1)
+        alignment = config.get("alignment", False)
+        image_grid = config.get("image_grid", False)
+        sub_sampling = config.get("sub_sampling", False)
+        num_samples = config.get("num_samples", 3)
+        distinct_image = config.get("distinct_image", False)
+        num_distinct_img = config.get("num_distinct_img", 0.5)
+        num_distinct_questions = config.get("num_distinct_questions", 2)
 
         # Load the dataset from disk
         hf_dataset = load_from_disk(data_path)[split]
@@ -82,47 +85,53 @@ class LazySupervisedDataset(Dataset):
                 self.list_data_dict.append(data_dict)            
 
         else:
-            count = 0
             if distinct_image == True:
-                total = len(hf_dataset)
-                subset = hf_dataset.select(range(0, int(total * num_distinct_img)))
-                for sample in subset: 
-                    prompt = sample.get("prompt", "")
-                    if alignment == True:
-                        for i in range(math.ceil(1/num_distinct_img)):
-                            if count == total:
-                                break       
+                if alignment == True:
+                    subset = hf_dataset.select(range(0, int(max_data_size * num_distinct_img)))
+                    count = 0
+                    for sample in subset:
+                        prompt = sample.get("prompt", "")
+                        for i in range(0, math.ceil(1/num_distinct_img)):
                             conversations = []
                             response = ""
                             for entry in random.sample(sample["conversations"], num_distinct_questions):
                                 for subentry in entry:
                                     response += subentry
-                                response += "\n"
-                            conversations.append(["", response])
+                            response += "\n"
+                            conversations.append(response)
                             data_dict = {
                                 "image": sample.get("image", None),
                                 "prompt": prompt,
                                 "conversations": conversations
                             }
+                            if self.debug:
+                                data_dict["text"] = sample.get("text", "")
+                            if self.vision_token_ablation:
+                                data_dict["grid"] = sample.get('grid', parse_grid(sample['text']))
+                            self.list_data_dict.append(data_dict)
                             count += 1
-
-                    else: 
-                        for i in range(math.ceil(1/num_distinct_img)):
-                            if count == total:
-                                break 
+                            if count == max_data_size:
+                                break
+                else:
+                    subset = hf_dataset.select(range(0, int(max_data_size * num_distinct_img)))
+                    count = 0
+                    for sample in subset:
+                        prompt = sample.get("prompt", "")
+                        for i in range(0, math.ceil(1/num_distinct_img)):
                             conversations = random.sample(sample["conversations"], num_distinct_questions)
                             data_dict = {
                                 "image": sample.get("image", None),
                                 "prompt": prompt,
                                 "conversations": conversations
                             }
+                            if self.debug:
+                                data_dict["text"] = sample.get("text", "")
+                            if self.vision_token_ablation:
+                                data_dict["grid"] = sample.get('grid', parse_grid(sample['text']))
+                            self.list_data_dict.append(data_dict)
                             count += 1
-                    
-                    if self.debug:
-                        data_dict["text"] = sample.get("text", "")
-                    if self.vision_token_ablation:
-                        data_dict["grid"] = sample.get('grid', parse_grid(sample['text']))
-                    self.list_data_dict.append(data_dict)  
+                            if count == max_data_size:
+                                break
             else:
                 for sample in hf_dataset:
                     prompt = sample.get("prompt", "")
@@ -198,6 +207,3 @@ class LazySupervisedDataset(Dataset):
         if self.vision_token_ablation:
             item_dict["grid"] = sample["grid"]
         return item_dict
-    
-
-original_alignment = LazySupervisedDataset(r"/home/allanz/data/datasets/spuco/test/multimodal_dataset", "train", 10, False, True, True, False, False, 0, True, 0.5, 3)

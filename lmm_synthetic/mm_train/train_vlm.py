@@ -12,9 +12,9 @@ from transformers import (
     get_scheduler
 )
 
-from new_gptj_vlm import GPTJ_VLM, GPTJ_VLM_Config, GPTJ_VLM_DataCollator
+from lmm_synthetic.mm_train.gptj_vlm import GPTJ_VLM, GPTJ_VLM_Config, GPTJ_VLM_DataCollator
 from lmm_synthetic.mm_train.utils import VisionTokenAblations
-from new_mm_datasets import LazySupervisedDataset
+from lmm_synthetic.mm_train.mm_datasets import LazySupervisedDataset
 
 # Define data-specific arguments
 @dataclass
@@ -154,6 +154,7 @@ def main():
 
     # Prepare dataset
     logger.info("Preparing dataset")
+    # Change needed here to args
     dataset = LazySupervisedDataset(data_args.data_path, data_args.split, data_args.max_data_size, vision_token_ablation=model_args.vision_token_ablation, debug=data_args.debug_data)
     data_collator = GPTJ_VLM_DataCollator(tokenizer, model.image_transforms, vision_token_ablation=model_args.vision_token_ablation, debug=data_args.debug_data)
 
