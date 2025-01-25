@@ -1,5 +1,4 @@
 from typing import Dict, List
-
 from datasets import load_from_disk
 from loguru import logger
 from PIL import Image
@@ -20,55 +19,42 @@ def find_text(text, char, index):
             if count == index:
                 return i 
 
-def load_params_from_json(json_file_path: str) -> Dict:
-    """Load parameters from a JSON file."""
-    if not os.path.exists(json_file_path):
-        raise FileNotFoundError(f"JSON file not found: {json_file_path}")
-    with open(json_file_path, "r") as f:
-        content = f.read()
-        print(f"JSON content: {content}")  # Debug: Print file content
-        params = json.loads(content)  # Use json.loads to parse string
-    return params
-
-
 class LazySupervisedDataset(Dataset):
     """Dataset for multimodal supervised fine-tuning
 
     Args:
-        data_path (str): Path to the dataset.
-        split (str): Dataset split (e.g., 'train', 'test').
-        max_data_size (int, optional): Maximum number of data samples to load. Defaults to -1 (load all).
-        vision_token_ablation (bool, optional): Whether to perform vision token ablation. Defaults to False.
-        debug (bool, optional): Whether to enable debug mode. Defaults to False.
-        alignment (bool, optional): Whether to concatenate everything into reponse for alignment training
-        image_grid (bool, optional): Whether to have dataset only include image and text grid
-        sub_sampling (bool, optional): Whether to subsample the conversations
-        num_samples (int, optional): Number of conversations to subsample
-        distinct_image(bool, optional): Whether to limit the number of unique images to show 
-        num_distinct_img (float, optional): Percent of unique images to show from each subset
-        num_questions (int, optional): Number questions to show for each image
-
+        json_file_path (str): Path to the JSON configuration file.
     """
 
     def __init__(
         self, 
-        data_path: str, 
-        split: str,
-        max_data_size: int = -1,
-        vision_token_ablation: bool = False,
-        debug: bool = False,
-        alignment: bool = False,
-        image_grid: bool = False,
-        sub_sampling: bool = False,
-        num_samples: int = 3,
-        distinct_image: bool = False,
-        num_distinct_img: float = 0.5,
-        num_distinct_questions: int = 2
-
+        json_file_path: str
     ) -> None:
         super(LazySupervisedDataset, self).__init__()
-        self.debug = debug
-        self.vision_token_ablation = vision_token_ablation
+
+        # Load parameters from JSON file
+        if not os.path.exists(json_file_path):
+            raise FileNotFoundError(f"JSON file not found: {json_file_path}")
+        with open(json_file_path, "r") as f:
+            params = json.load(f)
+
+        # Extract parameters
+        self.debug = params.get("debug", False)
+        self.vision_token_ablation = params.get("vision_token_ablation", False)
+        max_data_size = params.get("max_data_size", -1)
+        alignment = params.get("alignment", False)
+        image_grid = params.get("image_grid", False)
+        sub_sampling = params.get("sub_sampling", False)
+        num_samples = params.get("num_samples", 3)
+        distinct_image = params.get("distinct_image", False)
+        num_distinct_img = params.get("num_distinct_img", 0.5)
+        num_distinct_questions = params.get("num_distinct_questions", 2)
+        data_path = params.get("data_path", "")
+        split = params.get("split", "train")
+
+        # Validate required parameters
+        if not data_path or not split:
+            raise ValueError("JSON file must contain 'data_path' and 'split' parameters.")
 
         # Load the dataset from disk
         hf_dataset = load_from_disk(data_path)[split]
@@ -172,8 +158,6 @@ class LazySupervisedDataset(Dataset):
                         data_dict["grid"] = sample.get('grid', parse_grid(sample['text']))
                     self.list_data_dict.append(data_dict)
 
-
-
         # Limit the dataset size if max_data_size is specified
         if max_data_size > 0:
             self.list_data_dict = self.list_data_dict[:max_data_size]
@@ -210,23 +194,11 @@ class LazySupervisedDataset(Dataset):
             item_dict["grid"] = sample["grid"]
         return item_dict
 
-def create_dataset_from_json(json_file_path: str):
-    """Create a LazySupervisedDataset instance from a JSON file."""
-    params = load_params_from_json(json_file_path)
-    required_params = ["data_path", "split"]
-    for param in required_params:
-        if param not in params:
-            raise ValueError(f"Missing required parameter '{param}' in JSON file.")
-    return LazySupervisedDataset(**params)
-
-
-#original_alignment = LazySupervisedDataset(r"/home/allanz/data/datasets/spuco/test/multimodal_dataset", "train", 10, False, True, True, False, False, 0, True, 0.5, 3)
-
 
 if __name__ == "__main__":
     # Path to the JSON file holding parameters
     json_file_path = "/home/allanz/lmm/lmm_synthetic/mm_train/dataset_configs/test.json"
 
     # Create dataset instance using the JSON file
-    dataset = create_dataset_from_json(json_file_path)
+    dataset = LazySupervisedDataset(json_file_path)
     print(f"Dataset size: {len(dataset)}")
