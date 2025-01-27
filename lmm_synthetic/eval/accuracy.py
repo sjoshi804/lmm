@@ -175,7 +175,8 @@ def evaluate_model_on_dataset(model, tokenizer, dataset, split, K, num_samples=2
     logger.info(f"Starting evaluation on {num_samples} grids")
     pbar = tqdm(enumerate(dataset[split]), total=num_samples)
     
-    _, image_transforms, _ = load_vision_encoder(model.config.vision_encoder_config, model.config.kwargs)
+    if multimodal_model:
+        _, image_transforms, _ = load_vision_encoder(model.config.vision_encoder_config, model.config.kwargs)
     
     for i, example in pbar:
         if num_grids == num_samples:
