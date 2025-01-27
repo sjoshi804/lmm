@@ -89,7 +89,7 @@ def create_position_assertions(grid: List[List[str]]) -> List[str]:
     assertions = []
     for i in range(len(grid)):
         for j in range(len(grid[0])):
-            assertions.append(f"row {i}, column {j}" + f"A: {grid[i][j]}")
+            assertions.append(f"Row {i}, Column {j}" + f": {grid[i][j]}")
     return assertions
 
 def create_dataset_from_json(args) -> datasets.DatasetDict:
