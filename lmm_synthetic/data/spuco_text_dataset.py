@@ -11,7 +11,7 @@ from tqdm import trange
 import os 
 
   
-def create_grid(num_rows: int, num_cols: int, vocab: List[str], vocab_subset_size: int, spuco: bool, position: tuple, correlation: int, label = "dog") -> List[List[str]]:
+def create_grid(num_rows: int, num_cols: int, vocab: List[str], vocab_subset_size: int, spuco: bool, position: tuple, correlation: float, label = "dog") -> List[List[str]]:
     """
     Creates a grid with the specified number of rows and columns,
     randomly sampling objects from the provided vocabulary.
@@ -24,14 +24,14 @@ def create_grid(num_rows: int, num_cols: int, vocab: List[str], vocab_subset_siz
     - spuco: bool - whether to create dataset with spurious correlation or not
     - label: str - the label to correlate with a certain position in the grid 
     - position: tuple - where to place the label in the grid 
-    - correlation: input / 10 to give the frequency of the correlation to occur 
+    - correlation: float - percentage indicating the frequency of the correlation to occur 
     Returns:
     - List[List[str]] - The generated grid.
     """
     grid = []
     x, y = position
-
-    if spuco and random.choice([x for x in range(1, 11)]) <= correlation:
+    
+    if random.choice([x for x in range(1,11)]) <= correlation * 10:
         vocab_copy = vocab.copy()
         vocab_copy.remove(label)
         vocab_subset = random.sample(vocab_copy, vocab_subset_size - 1)
@@ -47,7 +47,6 @@ def create_grid(num_rows: int, num_cols: int, vocab: List[str], vocab_subset_siz
     else:
         vocab_subset = random.sample(vocab, vocab_subset_size)
         grid = [[random.choice(vocab_subset) for _ in range(num_cols)] for _ in range(num_rows)]
-
     return grid
 
 
@@ -62,7 +61,7 @@ def convert_grid_to_str(grid: List[List[str]]) -> str:
     - str - The grid formatted as a string.
     """
     rows = ['| ' + ' | '.join(row) + ' |' for row in grid]
-    return '\n'.join(rows)
+    return '\n'.join(rows) 
 
 def add_grid_instruction(grid: List[List[str]]) -> str:
     """
@@ -112,10 +111,10 @@ def create_position_assertions(grid: List[List[str]]) -> List[str]:
     assertions = []
     for i in range(len(grid)):
         for j in range(len(grid[0])):
-            assertions.append(f"Row {i}, Column {j}" + f": {grid[i][j]}")
+            assertions.append(f"row {i}, column {j}" + f"A: {grid[i][j]}")
     return assertions
 
-def create_dataset(num_samples, num_questions, num_rows, num_cols, vocab, vocab_subset_size, spuco, position, correlation, label, text_save_path = "/home/allanz/data/datasets/spuco/text_dataset") -> datasets.DatasetDict:
+def create_dataset_from_json(num_samples, num_questions, num_rows, num_cols, vocab, vocab_subset_size, spuco, position, correlation, label) -> datasets.DatasetDict:
     """
     Creates a synthetic text dataset based on parameters from a JSON file.
 
@@ -169,11 +168,24 @@ def create_dataset(num_samples, num_questions, num_rows, num_cols, vocab, vocab_
     
     # Ensure the output directory exists
     
-    dataset_dir = text_save_path 
+    dataset_dir = "/home/allanz/data/datasets/spuco/text_dataset"
+    
     # Save the entire dataset dictionary to disk
     dataset_dict.save_to_disk(dataset_dir)
     logger.info(f"Saved dataset to disk at: {dataset_dir}")
 
     return dataset_dict
 
-
+"""
+create_dataset_from_json(
+    {"train": 100000, "validation": 1000, "test": 1000},
+    9,  # num_questions
+    3,  # num_rows
+    3,  # num_cols
+    ['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck'],
+    4,  # vocab_subset_size
+    True,  # spuco
+    (0, 0),  # position
+    0.9,  # correlation (90% chance)
+    "dog"
+)"""

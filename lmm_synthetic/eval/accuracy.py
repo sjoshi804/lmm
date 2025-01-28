@@ -120,7 +120,7 @@ def generate_responses_vlm(model, tokenizer, image_tensors, prompts, max_new_tok
         outputs = model.generate(
             images=image_tensors,
             text_input_ids=text_input_ids,
-            max_length=max_length + max_new_tokens,  # Include space for new tokens
+            max_new_tokens=max_new_tokens,  # Include space for new tokens
             num_beams=1,  # Default to greedy decoding
             no_repeat_ngram_size=2,
             pad_token_id=tokenizer.pad_token_id,
@@ -292,7 +292,7 @@ def main():
     parser.add_argument("--K", type=int, default=3, help="Size of the grid (KxK)")
     parser.add_argument("--num_samples", type=int, default=250, help="Number of grids to evaluate")
     parser.add_argument("--debug", action="store_true", help="Enable debug logging")
-    parser.add_argument("--results_dir", type=str, default="/home/sjoshi/lmm/lmm_synthetic/results", help="Directory to save results")
+    parser.add_argument("--results_dir", type=str, default="/home/sjoshi/lmm/results", help="Directory to save results")
 
     args = parser.parse_args()
     # Create results directory if it doesn't exist

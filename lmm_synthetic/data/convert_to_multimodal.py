@@ -1,18 +1,81 @@
-import argparse
-import json
-import os
-import random
-from datasets import load_from_disk
-from loguru import logger
-from tqdm import tqdm
+from datasets import load_from_disk, load_dataset, Dataset, DatasetDict
 from PIL import Image
+import random 
+import os
 import re
-from datasets import DatasetDict, Dataset
-import pandas as pd
 
-BORDER_SIZE = 6
 
-def merge_image(grid, final_size=(256, 256), resized_images=None):
+def reformat(old):
+    """
+    Function to turn dataset of form {'train: '', grid: ''} into {'text': '', 'prompt': '', 
+    'conversations': '', 'image': ''}
+    Args:
+        old (dict): The old dataset
+    Returns:
+        new (dict): The new dataset
+    """
+
+    new = {}
+    new['text'] = old['text']
+    text = old['text']
+    prompt_pattern = r"(The grid above.*\.)"
+    prompt_match = re.search(prompt_pattern, text)
+    prompt = prompt_match.group(0) if prompt_match else "Prompt not found"
+    new['prompt'] = prompt
+    conversations_pattern = r"(What object.*?A: .+)"
+    conversations_raw = re.findall(conversations_pattern, text)
+    conversations = [pair.split('A: ') for pair in conversations_raw]
+    new['conversations'] = conversations
+    new['image'] = "temp"
+    return new
+
+def format_dataset(dataset_path):
+    """
+    Function to create new, reformatted dataset
+    Args:
+        dataset (str): Path to new dataset
+    """
+    dataset = load_from_disk(dataset_path)
+    new_data = {split: [reformat(entry) for entry in entries] for split, entries in dataset.items()}
+
+    new_dataset = DatasetDict({
+        "train": Dataset.from_dict({
+            "text": [entry["text"] for entry in new_data["train"]],
+            "prompt": [entry["prompt"] for entry in new_data["train"]],
+            "conversations": [entry["conversations"] for entry in new_data["train"]],
+            "image": [entry["image"] for entry in new_data["train"]]
+        }),
+        "test": Dataset.from_dict({
+            "text": [entry["text"] for entry in new_data["test"]],
+            "prompt": [entry["prompt"] for entry in new_data["test"]],
+            "conversations": [entry["conversations"] for entry in new_data["test"]],
+            "image": [entry["image"] for entry in new_data["test"]]
+        }),
+        "validation": Dataset.from_dict({
+            "text": [entry["text"] for entry in new_data["validation"]],
+            "prompt": [entry["prompt"] for entry in new_data["validation"]],
+            "conversations": [entry["conversations"] for entry in new_data["validation"]],
+            "image": [entry["image"] for entry in new_data["validation"]]
+        })
+    })
+    return new_dataset
+
+# Necessary function for later
+def parse_grid(grid_str, K):
+    """
+    Parse the grid string into a 2D list of grid cells.
+    """
+    grid_str = '\n'.join(grid_str.split('\n')[:K])
+    rows = grid_str.strip().split('\n')
+    return [[cell.strip() for cell in row.split('|') if cell.strip()] for row in rows]
+
+
+# Creates merged grid
+def merge_image(grid, final_size=(256, 256), num_unique_images = 1000, border_size = 6, set_type = "train"):
+    """
+    Creates 3x3 image grid from 3x3 grid of words, returns the image grid
+    """
+    BORDER_SIZE = border_size
     # Determine the number of rows and columns
     rows = len(grid)
     cols = len(grid[0]) if rows > 0 else 0
@@ -31,161 +94,109 @@ def merge_image(grid, final_size=(256, 256), resized_images=None):
     # Place each image in the combined image
     for row_index, row in enumerate(grid):
         for col_index, word in enumerate(row):
-            img = resized_images[word]
+            if set_type == "train":
+                i = random.randint(0, num_unique_images)
+            elif set_type == "validation":
+                i = random.randint(2000, 2000 + num_unique_images)
+            elif set_type == "test":
+                i = random.randint(4000, 4000 + num_unique_images)
+            else:
+                raise ValueError(f"Unknown type: {type}")
+            # Change path if necessary
+            img = Image.open(f"/home/allanz/data/images/{word}/{i}.png").resize((element_height, element_width), Image.Resampling.LANCZOS)
             x = col_index * (element_width + BORDER_SIZE)
             y = row_index * (element_height + BORDER_SIZE)
             combined_image.paste(img, (x, y))
     
     return combined_image
 
-def truncate_before_substring(text, substring):
-    index = text.find(substring)
-    if index != -1:
-        return text[index:]
-    return text
 
-def prepare_for_multimodal(text):
-    # Find the start of "The grid above" and split from there
-    grid_start_index = text.find("The grid above")
-    processed_string = text[grid_start_index:]
+def save_merged_grid(previous_dataset, set_type, num_unique_images, start, last, spuco = False):
+    """
+    Saves new grids to be used in new dataset
 
-    # Split into "prompt" and "questions/answers" based on "]"
-    split_parts = processed_string.split("].")
-    prompt = split_parts[0].strip() + "]."  # Re-add the "]" and the "." at the end of the prompt
-    questions_answers = split_parts[1].strip()
+    Parameters:
+    - previous_dataset: DatasetDict - The dataset to get the grids from
+    - set_type: str - The type of dataset to get the grids from (train, validation, test)
+    - num_unique_images: int - The number of unique images from each class to sample from
+    - start: int - The starting index of the grids to save
+    - last: int - The ending index of the grids to save
+    - spuco: bool - Whether the dataset has spurious correlations or not
+    Returns:
+    - None
+    """
+    # Load the previous dataset, create subset of grids to save
+    subset = previous_dataset[set_type].select(range(start, last))
+    grids = subset["text"]
+    count = start 
+    if spuco == True:
+        for grid in grids:
+            temp_grid = parse_grid(grid, 3)
+            img = merge_image(temp_grid, num_unique_images = num_unique_images)
+            img.save(f"/home/allanz/data/grid/spuco/{set_type}/{count}.png")
+            count += 1
+            print(f"Grid {count} for {set_type} saved successfully!")
+    else:
+        for grid in grids:
+            temp_grid = parse_grid(grid, 3)
+            img = merge_image(temp_grid, num_unique_images = num_unique_images)
+            img.save(f"/home/allanz/data/grid/{set_type}/{count}.png")
+            count += 1
+            print(f"Grid {count} for {set_type} saved successfully!")
 
-    # Split the questions and answers into tuples
-    qa_pairs = []
-    lines = questions_answers.split("\n")
-    for line in lines:
-        if line.strip():
-            question_end = line.find("?")
-            if question_end != -1:
-                question = line[:question_end + 1].strip()
-                answer = line[question_end + 1:].strip()
-                qa_pairs.append((question, answer))
+    print(f"Grids for {set_type} saved successfully!")
+
+
+# Copy old dataset, change image path
+def copy(set_type, dataset, spuco):
+    data = []
+    if spuco == True:
+        for i in range(len(dataset[set_type])):
+            temp = {'text' : dataset[set_type][i]['text'], 'prompt' : dataset[set_type][i]['prompt'], 
+            'conversations' : dataset[set_type][i]['conversations'], 'image' : f'/home/allanz/data/grid/spuco/{set_type}/{i}.png'}
+            data.append(temp)
+            print(f"Grid {i} for {type} copied successfully!")
+    elif spuco == False:
+        for i in range(len(dataset[set_type])):
+            temp = {'text' : dataset[set_type][i]['text'], 'prompt' : dataset[set_type][i]['prompt'], 
+            'conversations' : dataset[set_type][i]['conversations'], 'image' : f'/home/allanz/data/grid/{set_type}/{i}.png'}
+            data.append(temp)
+            print(f"Grid {i} for {type} copied successfully!")      
+    return data
+
+# Convert list of dictionaries to dictionary of lists
+def convert_to_dict_of_lists(data):
+    result = {}
+    for key in data[0].keys():  
+        result[key] = [entry[key] for entry in data]
+    return result
+
+# Save new dataset
+def create_new_dataset(old_dataset_path, save_path, spuco):
+    train = copy('train', old_dataset_path, spuco)
+    validation = copy('validation', old_dataset_path, spuco)
+    test = copy('test', old_dataset_path, spuco)
+    print("Successfully copied old dataset, chaning image paths")
     
-    return prompt, qa_pairs
+    # Convert 'train', 'validation', and 'test' lists into dicts of lists
+    train_dict = convert_to_dict_of_lists(train)
+    validation_dict = convert_to_dict_of_lists(validation)
+    test_dict = convert_to_dict_of_lists(test)
+    print("Successfully converted lists to dictionaries")
 
-def calculate_element_size(final_size, rows, cols):
-    total_border_width = (cols - 1) * BORDER_SIZE
-    total_border_height = (rows - 1) * BORDER_SIZE
-    available_width = final_size[0] - total_border_width
-    available_height = final_size[1] - total_border_height
-    element_width = available_width // cols
-    element_height = available_height // rows
-    return (element_width, element_height)
-    
-def convert_to_multimodal(args):
-    logger.info("Starting conversion to multimodal dataset.")
-    
-    # Load json from dataset config path
-    logger.info(f"Loading config from {args.config_path}.")
-    with open(args.config_path, 'r') as f:
-        config = json.load(f)
-    
-    # Load huggingface language dataset using load_from_disk huggingface function
-    logger.info(f"Loading dataset from {args.dataset_path}.")
-    dataset = load_from_disk(args.dataset_path)
-    
-    # Pull "image_pool" dict from config
-    image_pool = config['image_pool']
-    
-    # "num_unique_images_per_class": Num unique images to use per class as path: pull from config
-    num_unique_images_per_class = config['num_unique_images_per_class']
-    
-    # Initialize an image pool dictionary corresponding to image pool from config
-    logger.info("Sampling images for each class.")
-    sampled_image_pool = {}
-    for word, folder in image_pool.items():
-        images = os.listdir(folder)
-        sampled_image_pool[word] = random.sample(images, num_unique_images_per_class)
-    
-    # Pre-load and resize images once at the start
-    logger.info("Loading and resizing images.")
-    resized_images = {}
-    rows, cols = config["num_rows"], config["num_cols"]
-    
-    element_size = calculate_element_size(config["image_size"], rows, cols)
+    # Create the datasets using from_dict
+    train_dataset = Dataset.from_dict(train_dict)
+    validation_dataset = Dataset.from_dict(validation_dict)
+    test_dataset = Dataset.from_dict(test_dict)
+    print("Successfully created datasets")
 
-    for word, image_list in sampled_image_pool.items():
-        resized_images[word] = [
-            Image.open(os.path.join(image_pool[word], image_name)).resize(element_size, Image.Resampling.LANCZOS)
-            for image_name in image_list
-        ]
-
-    # Convert to dictionary format for fast lookup
-    resized_images_dict = {}
-    for word, images in resized_images.items():
-        for i, img in enumerate(images):
-            resized_images_dict[f"{word}_{i}"] = img
-
-    # Path for multimodal dataset
-    multimodal_dataset_path = os.path.join(args.output_dir, os.path.basename(args.config_path).split('.')[0] + '_multimodal')
-    os.makedirs(multimodal_dataset_path)
-    
-    # Create an images subfolder
-    images_folder = os.path.join(multimodal_dataset_path, 'images')
-    os.makedirs(images_folder, exist_ok=True)
-    # For each split in dataset
-    logger.info("Processing dataset splits.")
-    multimodal_splits = {}
-
-    for split in dataset.keys():
-        new_split = []
-        if split == "train":
-            sample_count = config["multimodal_train_size"]
-            dataset_split = list(enumerate(dataset[split]))[:sample_count]
-        else:
-            dataset_split = list(enumerate(dataset[split]))
-
-        for id, sample in tqdm(dataset_split, total=len(dataset_split), desc=f"Processing {split} split"):
-            # If "grid" attribute present, use this as the grid. If not provided, parse the 2d grid from "text" attribute
-            grid = sample.get('grid', parse_grid_from_text(sample['text']))
-            
-            # Map each object to an image from corresponding class from image pool
-            for i, row in enumerate(grid):
-                for j, word in enumerate(row):
-                    # Select a random image for the word and use the pre-resized image
-                    image_key = f"{word}_{random.randint(0, num_unique_images_per_class - 1)}"
-                    grid[i][j] = image_key
-            
-            # Merge the images for the grid to create 1 image
-            merged_image_path = os.path.join(images_folder, f"{split}_{id}.png")
-            merge_image(grid, tuple(config["image_size"]), resized_images=resized_images_dict).save(merged_image_path)
-            
-            # Replace the grid with the <image_1> tag in the text
-            sample['prompt'], sample['conversations'] = prepare_for_multimodal(sample['text'])
-            sample['image'] = merged_image_path
-            
-            new_split.append(sample)
-        
-        # Convert the new split to a Huggingface Dataset
-        df = pd.DataFrame(new_split)
-        multimodal_splits[split] = Dataset.from_pandas(df)
-    
-    # Save the new multimodal dataset
-    multimodal_dataset = DatasetDict(multimodal_splits)
-    logger.info(f"Saving new multimodal dataset to {multimodal_dataset_path}.")
-    multimodal_dataset.save_to_disk(multimodal_dataset_path)
-    
-    logger.info("Conversion to multimodal dataset completed.")
+    # Save the datasets
+    dataset_dict = DatasetDict({'train': train_dataset, 'validation': validation_dataset, 'test': test_dataset})
+    dataset_dict.save_to_disk(save_path)
+    print(f"Successfully saved new dataset to {save_path}")
 
 
-def parse_grid_from_text(grid_str):
-    grid_str = '\n'.join(grid_str.split('\n')[:3])
-    rows = grid_str.strip().split('\n')
-    grid = [row.strip().split('|') for row in rows]
-    # Remove any empty strings resulting from splitting and strip each element
-    return [[cell.strip() for cell in row if cell.strip()] for row in grid]
-
-if __name__ == "__main__":
-    logger.info("Parsing arguments.")
-    parser = argparse.ArgumentParser(description="Convert a dataset to a multimodal dataset.")
-    parser.add_argument('--config_path', type=str, required=True, help='Path to the dataset config file.')
-    parser.add_argument('--dataset_path', type=str, required=True, help='Path to the Huggingface dataset.')
-    parser.add_argument('--output_dir', type=str, required=False, default="/home/sjoshi/lmm/data/generated/", help='Path to save the generated dataset.')
-
-    args = parser.parse_args()
-
-    convert_to_multimodal(args)
+#save_merged_grid('/home/allanz/data/datasets/spuco/text_reformatted', "train",  1000, 0, 100000)
+#save_merged_grid('/home/allanz/data/datasets/spuco/text_reformatted', "validation", 1000, 0, 1000)
+#save_merged_grid('/home/allanz/data/datasets/spuco/text_reformatted', "test", 1000, 0, 1000)
+#create_new_dataset('/home/allanz/data/datasets/spuco/text_reformatted','/home/allanz/data/datasets/spuco_multimodal')
