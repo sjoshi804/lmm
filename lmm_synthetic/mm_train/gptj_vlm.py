@@ -185,12 +185,9 @@ class GPTJ_VLM_DataCollator:
             if debug:
                 full_input += prompt 
             
-            # No prompt loss
             prompt_input_ids = self.tokenizer(prompt, return_tensors='pt', padding=True)['input_ids'].squeeze(0)
-            
-            excluded_prompt_input_ids = torch.full(prompt_input_ids.shape, -100, dtype=torch.long) 
-            input_ids = [excluded_prompt_input_ids]
-            label_ids = [excluded_prompt_input_ids.clone()] # put -100s instead of tokenids so no loss 
+            input_ids = [prompt_input_ids]
+            label_ids = [torch.full(prompt_input_ids.shape, -100, dtype=torch.long)] 
 
             # Tokenize conversations
             for conv_num, (instr, resp) in enumerate(conversations):
