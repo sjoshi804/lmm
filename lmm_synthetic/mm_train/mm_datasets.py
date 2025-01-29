@@ -55,22 +55,24 @@ def modality_mismatch(entry, num_corrupted_cells, corrupt_questions):
     options = ast.literal_eval(entry["text"][grid_index + 66:test])
     original = entry["text"][grid_index:]
     
-    while len(corrupt_cells) < num_corrupted_cells:
-        x = random.choice(range(0,3))
-        y = random.choice(range(0,3))
-        if [x, y] not in corrupt_cells:
-            corrupt_cells.append([x, y])
-    for x,y in corrupt_cells:
-        current = text_grid[x][y]
-        switch = options.copy()
-        switch.remove(current)
-        replace = random.choice(switch)
-        text_grid[x][y] = replace
-        if corrupt_questions:
-            for conversation in entry["conversations"]:
-                if f"row {x}" in conversation[0] and f"column {y}" in conversation[0]:
-                    conversation[1] = replace
-    entry["text"] = unparse_grid(text_grid) + original  
+    if len(options) > 1:
+        while len(corrupt_cells) < num_corrupted_cells:
+            x = random.choice(range(0,3))
+            y = random.choice(range(0,3))
+            if [x, y] not in corrupt_cells:
+                corrupt_cells.append([x, y])
+        for x,y in corrupt_cells:
+            current = text_grid[x][y]
+            switch = options.copy()
+            switch.remove(current)
+            replace = random.choice(switch)
+            text_grid[x][y] = replace
+            if corrupt_questions:
+                for conversation in entry["conversations"]:
+                    if f"row {x}" in conversation[0] and f"column {y}" in conversation[0]:
+                        conversation[1] = replace
+        entry["text"] = unparse_grid(text_grid) + original  
+
     return entry  
 
 

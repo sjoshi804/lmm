@@ -1,1 +1,1 @@
-{"data_path": "/home/allanz/data/datasets/spuco/test/multimodal_dataset", "split": "train", "max_data_size": 10, "vision_token_ablation": false, "debug": true, "mismatch": true, "num_corrupted_cells": 2, "corrupt_questions" : true}
+{"data_path": "/home/allanz/data/datasets/v3.1_spatial_grid_multimodal", "split": "train", "max_data_size": 1000, "vision_token_ablation": false, "debug": true, "mismatch": true, "num_corrupted_cells": 2, "corrupt_questions" : true}
