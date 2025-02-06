@@ -1,1 +1,7 @@
-{"data_path": "/home/allanz/data/datasets/spuco/test/multimodal_dataset", "split": "train", "max_data_size": 10, "vision_token_ablation": false, "debug": false, "alignment": true}
+{
+   "split": "train",
+   "max_data_size": 10,
+   "vision_token_ablation": false,
+   "debug": false,
+   "alignment": true
+}

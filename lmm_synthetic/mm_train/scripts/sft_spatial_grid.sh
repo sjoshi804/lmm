@@ -1,5 +1,5 @@
 WD="/home/sjoshi/lmm/lmm_synthetic/mm_train"
-RUN_ID=sft_v3_spatial_grid_multimodal_2e-3
+RUN_ID=task_1_rq_1
 export WANDB_PROJECT="vlm_training"
 
 deepspeed \
@@ -7,7 +7,7 @@ deepspeed \
     --master_port 29501 \
     $WD/train_vlm.py \
     --deepspeed $WD/ds_configs/zero3.json \
-    --data_path /home/sjoshi/lmm/lmm_synthetic/data/generated/v3_spatial_grid_multimodal \
+    --data_path /home/sjoshi/lmm/lmm_synthetic/data/generated/v3.1_spatial_grid_multimodal \
     --split train \
     --gptj_model_path /home/sjoshi/lmm/lmm_synthetic/lm_train/checkpoints/sft_v3_spatial_grid/checkpoint-1955/ \
     --vision_encoder clip \

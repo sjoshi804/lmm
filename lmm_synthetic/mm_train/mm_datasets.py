@@ -79,36 +79,20 @@ class LazySupervisedDataset(Dataset):
     """Dataset for multimodal supervised fine-tuning
 
     Args:
-        data_path (str): Path to the dataset.
-        split (str): Dataset split (e.g., 'train', 'test').
-        max_data_size (int, optional): Maximum number of data samples to load. Defaults to -1 (load all).
-        vision_token_ablation (bool, optional): Whether to perform vision token ablation. Defaults to False.
-        debug (bool, optional): Whether to enable debug mode. Defaults to False.
-        alignment (bool, optional): Whether to concatenate everything into reponse for alignment training
-        image_grid (bool, optional): Whether to have dataset only include image and text grid
-        sub_sampling (bool, optional): Whether to subsample the conversations
-        num_samples (int, optional): Number of conversations to subsample
-        distinct_image(bool, optional): Whether to limit the number of unique images to show 
-        num_distinct_img (float, optional): Percent of unique images to show from each subset
-        num_questions (int, optional): Number questions to show for each image
-        modality_mismatch (bool, optional): Whether to mismatch the image and text grids
-        num_corrupted_cells (int, optional): Number of cells to corrupt
-        corrupt_questions (bool, optional): Whether to corrupt the questions as well
+        data_path (str): Path to the dataset
+        config (Dict): Configuration dictionary
     """
 
     def __init__(
         self, 
-        config_json: str
+        data_path: str,
+        config: Dict
 
     ) -> None:
         super(LazySupervisedDataset, self).__init__()
-        with open(config_json, 'r') as f:
-            config = json.load(f)
-        
 
         self.debug = config.get("debug", False)
         self.vision_token_ablation = config.get("vision_token_ablation", False)
-        data_path = config.get("data_path", None)
         split = config.get("split", None)
         max_data_size = config.get("max_data_size", -1)
         alignment = config.get("alignment", False)
@@ -123,6 +107,7 @@ class LazySupervisedDataset(Dataset):
         corrupt_questions = config.get("corrupt_questions", False)
 
         # Load the dataset from disk
+        logger.debug(f"Loading dataset from {data_path}")
         hf_dataset = load_from_disk(data_path)[split]
         self.list_data_dict = []
 
