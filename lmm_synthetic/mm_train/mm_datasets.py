@@ -100,8 +100,8 @@ class LazySupervisedDataset(Dataset):
         sub_sampling = config.get("sub_sampling", False)
         num_samples = config.get("num_samples", 3)
         distinct_image = config.get("distinct_image", False)
-        num_distinct_img = config.get("num_distinct_img", 0.5)
-        num_distinct_questions = config.get("num_distinct_questions", 2)
+        num_distinct_img = config.get("num_distinct_img", 0.33)
+        num_distinct_questions = config.get("num_distinct_questions", 1)
         mismatch = config.get("mismatch", False)
         num_corrupted_cells = config.get("num_corrupted_cells", 1)
         corrupt_questions = config.get("corrupt_questions", False)
@@ -133,7 +133,9 @@ class LazySupervisedDataset(Dataset):
 
         else:
             if distinct_image == True:
+                logger.info(f"Distinct Image is True")
                 if alignment == True:
+                    raise NotImplementedError("Alignment is not supported for distinct image")
                     subset = hf_dataset.select(range(0, int(max_data_size * num_distinct_img)))
                     count = 0
                     for sample in subset:
@@ -162,27 +164,50 @@ class LazySupervisedDataset(Dataset):
                             if count == max_data_size:
                                 break
                 else:
-                    subset = hf_dataset.select(range(0, int(max_data_size * num_distinct_img)))
-                    count = 0
-                    for sample in subset:
-                        if mismatch:
-                            sample = modality_mismatch(sample, num_corrupted_cells, corrupt_questions)
-                        prompt = sample.get("prompt", "")
-                        for i in range(0, math.ceil(1/num_distinct_img)):
-                            conversations = random.sample(sample["conversations"], num_distinct_questions)
+                    assert num_distinct_img == 1 or num_distinct_img == 0.33, "num_distinct_img must be 1 or 0.33"
+                    data_size = int(max_data_size / 3)
+                    if num_distinct_img == 0.33:
+                        for i in range(data_size):
+                            sample = hf_dataset[i]
+                            if mismatch:
+                                sample = modality_mismatch(sample, num_corrupted_cells, corrupt_questions)
+                            prompt = sample.get("prompt", "")
+                            conversations = sample["conversations"]
+                            random.shuffle(conversations)
+                            data_dict1 = {
+                                "image": sample.get("image", None),
+                                "prompt": prompt,
+                                "conversations": conversations[:3]
+                            }
+                            data_dict2 = {
+                                "image": sample.get("image", None),
+                                "prompt": prompt,
+                                "conversations": conversations[3:6]
+                            }
+                            data_dict3 = {
+                                "image": sample.get("image", None),
+                                "prompt": prompt,
+                                "conversations": conversations[6:]
+                            }
+                            self.list_data_dict.append(data_dict1)
+                            self.list_data_dict.append(data_dict2)
+                            self.list_data_dict.append(data_dict3)
+                    elif num_distinct_img == 1:
+                        subset = hf_dataset.select(random.sample(range(len(hf_dataset)), data_size * 3))
+                        for sample in subset:
+                            if mismatch:
+                                sample = modality_mismatch(sample, num_corrupted_cells, corrupt_questions)
+                            prompt = sample.get("prompt", "")
                             data_dict = {
                                 "image": sample.get("image", None),
                                 "prompt": prompt,
-                                "conversations": conversations
+                                "conversations": random.sample(sample["conversations"], 3)
                             }
                             if self.debug:
                                 data_dict["text"] = sample.get("text", "")
                             if self.vision_token_ablation:
                                 data_dict["grid"] = sample.get('grid', parse_grid(sample['text']))
                             self.list_data_dict.append(data_dict)
-                            count += 1
-                            if count == max_data_size:
-                                break
             else:
                 for sample in hf_dataset:
                     if mismatch:
