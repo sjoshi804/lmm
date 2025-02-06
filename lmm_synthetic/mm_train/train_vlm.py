@@ -1,4 +1,5 @@
 import os
+import json
 from dataclasses import dataclass, field
 
 from loguru import logger
@@ -20,9 +21,6 @@ from lmm_synthetic.mm_train.mm_datasets import LazySupervisedDataset
 @dataclass
 class DataArguments:
     data_path: str = field(metadata={"help": "Path to the dataset."})
-    split: str = field(metadata={"help": "Dataset split to use (e.g., 'train', 'validation', 'test')."})
-    max_data_size: int = field(default=-1, metadata={"help": "Maximum number of samples to load."})
-    debug_data: bool = field(default=False, metadata={"help": "Whether to run in data debug mode."})
     dataset_config_path: str = field(default=None, metadata={"help": "Path to the dataset configuration file."})
 
 # Define model-specific arguments
@@ -155,7 +153,9 @@ def main():
     # Prepare dataset
     logger.info("Preparing dataset")
     # Change needed here to args
-    dataset = LazySupervisedDataset(data_args.data_path, data_args.split, data_args.max_data_size, vision_token_ablation=model_args.vision_token_ablation, debug=data_args.debug_data)
+    with open(data_args.dataset_config_path, "r") as f:
+        config = json.load(f)
+    dataset = LazySupervisedDataset(data_args.data_path, config)
     data_collator = GPTJ_VLM_DataCollator(tokenizer, model.image_transforms, vision_token_ablation=model_args.vision_token_ablation, debug=data_args.debug_data)
 
     # Initialize custom trainer (no need to pass model_args here since we only need training_args)
