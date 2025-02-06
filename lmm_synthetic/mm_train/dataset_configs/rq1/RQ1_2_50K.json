@@ -1,0 +1,7 @@
+{
+   "split": "train",
+   "max_data_size": 50000,
+   "vision_token_ablation": false,
+   "alignment": false,
+   "image_grid": true
+}

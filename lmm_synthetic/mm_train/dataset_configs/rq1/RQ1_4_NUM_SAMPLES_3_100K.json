@@ -1,0 +1,8 @@
+{
+   "split": "train",
+   "max_data_size": 100000,
+   "vision_token_ablation": false,
+   "alignment": false,
+   "sub_sampling": true,
+   "num_samples": 3
+}

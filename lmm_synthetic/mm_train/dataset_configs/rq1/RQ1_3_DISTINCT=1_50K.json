@@ -1,10 +1,10 @@
 {
    "split": "train",
-   "max_data_size": 10,
+   "max_data_size": 50000,
    "vision_token_ablation": false,
    "debug": false,
    "alignment": false,
    "sub_sampling": false,
    "distinct_image": true,
-   "num_distinct_img": 0.33
+   "num_distinct_img": 1
 }

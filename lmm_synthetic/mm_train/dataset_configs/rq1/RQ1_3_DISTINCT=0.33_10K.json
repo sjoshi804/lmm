@@ -1,6 +1,6 @@
 {
    "split": "train",
-   "max_data_size": 10,
+   "max_data_size": 10000,
    "vision_token_ablation": false,
    "debug": false,
    "alignment": false,
